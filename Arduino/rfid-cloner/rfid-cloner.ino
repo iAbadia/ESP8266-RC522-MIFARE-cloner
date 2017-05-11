@@ -24,6 +24,7 @@ byte buffer[18];
 byte block;
 byte card_dump[64][16];
 #define BLOCK_SIZE 16
+#define SECTOR_SIZE 4
 #define MIFARE_1K "MIFARE 1KB"
 #define MIFARE_4K "MIFARE_4KB"
 
@@ -41,6 +42,12 @@ byte knownKeys[NR_KNOWN_KEYS][MFRC522::MF_KEY_SIZE] =  {
   {0xd3, 0xf7, 0xd3, 0xf7, 0xd3, 0xf7}, // D3 F7 D3 F7 D3 F7
   {0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff}, // AA BB CC DD EE FF
   {0x00, 0x00, 0x00, 0x00, 0x00, 0x00}  // 00 00 00 00 00 00
+};
+
+typedef struct Sector {
+  byte number;
+  String key;
+  String blocks[4];
 };
 
 /* WIFI */
@@ -118,7 +125,7 @@ void loop() {
     return;
   }
 
-  save_card(&mfrc522);
+  read_card(&mfrc522);
 }
 
 
@@ -143,23 +150,38 @@ void print_fs() {
 /*#################  CARDS IN FILESYSTEM  ###################*/
 /*###########################################################*/
 
-/* Reads card, decides wether to save or skip it 
-     Return: TRUE  if Card saved
-             FALSE if Card not saved
-*/
-bool save_card(MFRC522* mfrc) {
-  String uid = get_card_uid(mfrc522.uid.uidByte, mfrc522.uid.size);
-  if (!check_card(uid)) {
-    // Card not in flash, save it
-    read_card();
-    return check_card(uid);
-  } else {
-    // Card already in flash, skip it
-    Serial.print(F("Card "));
-    Serial.print(uid);
-    Serial.println(F(" already stored, skipped."));
-    return false;
+/* Save card to filesystem */
+void save_card(String uid) {
+  // Create file for storing card
+  File card_file = SPIFFS.open(CARDS_DIR + uid, "w+");
+
+  // Show some details of the PICC
+  Serial.println("Card UID: " + uid);
+  Serial.print(F("PICC type: "));
+  MFRC522::PICC_Type piccType = mfrc522.PICC_GetType(mfrc522.uid.sak);
+  Serial.println(mfrc522.PICC_GetTypeName(piccType));
+
+  // Iterate over all blocks
+  MFRC522::MIFARE_Key key;
+  int picc_sectors = picc_blocks() / 4;
+  for (byte sector = 0; sector < picc_sectors; sector++) {
+    // Try all keys until found the right one
+    for (byte k = 0; k < NR_KNOWN_KEYS; k++) {
+      // Copy the known key into the MIFARE_Key structure
+      for (byte i = 0; i < MFRC522::MF_KEY_SIZE; i++) {
+        key.keyByte[i] = knownKeys[k][i];
+      }
+      // Try key
+      if (try_key_and_save_sector(&key, sector, &card_file)) break;
+    }
   }
+  mfrc522.PICC_HaltA();       // Halt PICC
+  mfrc522.PCD_StopCrypto1();  // Stop encryption on PCD
+
+  // Check saved card
+  card_file.close();
+  Serial.println("PRINTING SAVED CARD...");
+  print_card(uid);
 }
 
 /* Delete single card given UID
@@ -206,72 +228,61 @@ void update_cards_list() {
 /*#########################  CARDS ##########################*/
 /*###########################################################*/
 
+/* Reads card, decides wether to save or skip it
+     Return: TRUE  if Card saved
+             FALSE if Card not saved
+*/
+bool read_card(MFRC522* mfrc) {
+  String uid = get_card_uid(mfrc522.uid.uidByte, mfrc522.uid.size);
+  if (!check_card(uid)) {
+    // Card not in flash, save it
+    save_card(uid);
+    return check_card(uid);
+  } else {
+    // Card already in flash, skip it
+    Serial.print(F("Card "));
+    Serial.print(uid);
+    Serial.println(F(" already stored, skipped."));
+    return false;
+  }
+}
+
 /* Read card content block by block */
-boolean try_key(MFRC522::MIFARE_Key *key) {
-  boolean result = false;
+boolean try_key_and_save_sector(MFRC522::MIFARE_Key *key, byte sector, File* file_ptr) {
+  boolean result = true;
+  struct Sector sector_str; // 0: Key, [1-3]: Content
+  sector_str.number = sector;
 
-  int picc_blocks_n = picc_blocks();
-
-  for (byte block = 0; block < picc_blocks_n; block++) {
-
-    // Serial.println(F("Authenticating using key A..."));
+  // Read sector
+  byte block = sector * 4;
+  for (int i = 0; i < 4; i++) {
+    // Authenticate with A key
     status = mfrc522.PCD_Authenticate(MFRC522::PICC_CMD_MF_AUTH_KEY_A, block, key, &(mfrc522.uid));
     if (status != MFRC522::STATUS_OK) {
       Serial.print(F("PCD_Authenticate() failed: "));
       Serial.println(mfrc522.GetStatusCodeName(status));
       return false;
     }
-
     // Read block
     byte byteCount = sizeof(buffer);
     status = mfrc522.MIFARE_Read(block, buffer, &byteCount);
-    if (status != MFRC522::STATUS_OK) {
+    if (status == MFRC522::STATUS_OK) {
+      // Successful read
+      sector_str.key = byte_array_to_hex_string((*key).keyByte, MFRC522::MF_KEY_SIZE);
+      sector_str.blocks[i] = byte_array_to_hex_string(buffer, BLOCK_SIZE);
+      result &= true;
+    } else {
+      // Error reading block
       Serial.print(F("MIFARE_Read() failed: "));
       Serial.println(mfrc522.GetStatusCodeName(status));
+      result &= false;
     }
-    else {
-      // Successful read
-      result = true;
-
-      // Dump block data
-      Serial.print(F("\nBlock ")); Serial.print(block); Serial.print (F(": "));
-      // Print successful key
-      dump_byte_array((*key).keyByte, MFRC522::MF_KEY_SIZE);
-      Serial.println();
-      dump_byte_array_file(buffer, BLOCK_SIZE);
-      Serial.println();
-    }
+    block++;
   }
-  Serial.println();
-  mfrc522.PICC_HaltA();       // Halt PICC
-  mfrc522.PCD_StopCrypto1();  // Stop encryption on PCD
+  print_sector(&sector_str);
+  save_sector(&sector_str, file_ptr);
+
   return result;
-}
-
-/* Save card to filesystem */
-void read_card() {
-  // Show some details of the PICC (that is: the tag/card)
-  Serial.print(F("Card UID:"));
-  dump_byte_array(mfrc522.uid.uidByte, mfrc522.uid.size);
-  Serial.println();
-  Serial.print(F("PICC type: "));
-  MFRC522::PICC_Type piccType = mfrc522.PICC_GetType(mfrc522.uid.sak);
-  Serial.println(mfrc522.PICC_GetTypeName(piccType));
-
-  // Try the known default keys
-  MFRC522::MIFARE_Key key;
-  for (byte k = 0; k < NR_KNOWN_KEYS; k++) {
-    // Copy the known key into the MIFARE_Key structure
-    for (byte i = 0; i < MFRC522::MF_KEY_SIZE; i++) {
-      key.keyByte[i] = knownKeys[k][i];
-    }
-    // Try the key
-    if (try_key(&key)) {
-      // Found and reported on the key and block,
-      // no need to try other keys for this PICC
-      break;
-    }
-  }
 }
 
 /* Get active card's UID
@@ -292,9 +303,15 @@ String get_card_uid(byte *uid_buffer, byte bufferSize) {
 int picc_blocks() {
   MFRC522::PICC_Type piccType = mfrc522.PICC_GetType(mfrc522.uid.sak);
   String picc = mfrc522.PICC_GetTypeName(piccType);
-  if (picc.equals(MIFARE_1K)) {return 64;}
-  else if(picc.equals(MIFARE_4K)) {return 256;}
-  else {return 64;}
+  if (picc.equals(MIFARE_1K)) {
+    return 64;
+  }
+  else if (picc.equals(MIFARE_4K)) {
+    return 256;
+  }
+  else {
+    return 64;
+  }
 }
 
 /*###########################################################*/
@@ -309,11 +326,60 @@ void dump_byte_array(byte *buffer, byte bufferSize) {
   }
 }
 
+/* Dump byte array to String */
+String byte_array_to_hex_string(byte *buffer, byte bufferSize) {
+  String ret = "";
+  for (byte i = 0; i < bufferSize; i++) {
+    ret.concat(buffer[i] < 0x10 ? "0" : "");
+    ret.concat(String(buffer[i], HEX));
+  }
+  return ret;
+}
+
 /* Dump byte array to File - FALSEEEEEEEEEEEEEE, yet */
 void dump_byte_array_file(byte *buffer, byte bufferSize) {
   for (byte i = 0; i < bufferSize; i++) {
     Serial.print(buffer[i] < 0x10 ? "0" : "");
     Serial.print(buffer[i], HEX);
+  }
+}
+
+/* Print Sector struct to Serial */
+void print_sector(Sector* sector) {
+  // Info
+  Serial.print("+Sector ");
+  Serial.print(sector->number, DEC);
+  Serial.println(": " + sector->key);
+
+  // Blocks
+  for (int i = 0; i < SECTOR_SIZE; i++) {
+    Serial.println(sector->blocks[i]);
+  }
+}
+
+/* Save sector to file. Appends sector. */
+void save_sector(Sector* sector, File* f_ptr) {
+  // Info
+  f_ptr->print("+Sector ");
+  f_ptr->print(sector->number, DEC);
+  f_ptr->println(": " + sector->key);
+
+  // Blocks
+  for (int i = 0; i < SECTOR_SIZE; i++) {
+    f_ptr->println(sector->blocks[i]);
+  }
+}
+
+void print_card(String uid) {
+  File card = SPIFFS.open(CARDS_DIR + uid, "r");
+  print_file_lines(&card);
+}
+
+void print_file_lines(File* file) {
+  while (file->available()) {
+    //Lets read line by line from the file
+    String line = file->readStringUntil('n');
+    Serial.println(line);
   }
 }
 
