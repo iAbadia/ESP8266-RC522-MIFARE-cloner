@@ -1,4 +1,8 @@
 #include <ESP8266WiFi.h>
+#include <WiFiClient.h>
+#include <ESP8266WebServer.h>
+#include <ESP8266mDNS.h>
+#include <ArduinoJson.h>
 #include <SPI.h>
 #include <MFRC522.h>
 #include <FS.h>
@@ -54,6 +58,9 @@ typedef struct Sector {
 const char* ssid     = "OpenWRT";
 const char* password = "9484113580";
 
+/* WebServer */
+ESP8266WebServer server(80);
+
 /* STORAGE */
 #define CARDS_DIR "/c/"
 #define MAX_CARDS_N 30
@@ -69,22 +76,22 @@ void setup() {
 
   // Filesystem
   delay(50);
-  Serial.print(F("Filesystem... "));
+  Serial.println(F("Filesystem..."));
   bool fs = SPIFFS.begin();
-  Serial.println(fs ? "ready!" : "failed!");
+  Serial.println(fs ? " [+] Filesystem ready!" : " [-] Filesystem failed!");
   delete_all_cards();
 
   // Update cards list
-  Serial.print(F("Checking local cards... "));
+  Serial.println(F("Local cards..."));
   update_cards_list();
-  Serial.print(F("found "));
+  Serial.print(F(" [+] Found "));
   Serial.print(cards_count);
   Serial.println(F(" cards!"));
 
   // SPI init
-  Serial.print(F("SPI... "));
+  Serial.println(F("SPI..."));
   SPI.begin();
-  Serial.println(F("ready!"));
+  Serial.println(F(" [+] SPI ready!"));
 
   delay(50);
   // RC522 init
@@ -93,15 +100,39 @@ void setup() {
   mfrc522.PCD_Init();
   Serial.print(" [+] ");
   mfrc522.PCD_DumpVersionToSerial();
-  Serial.println(F("RC522... ready!"));
+  Serial.println(F(" [+] RC522 ready!"));
 
   // WIFI
   Serial.println(F("Wifi..."));
   Serial.print(F(" [+] Connecting to "));
-  Serial.print(ssid);
-  Serial.println(F("..."));
+  Serial.println(ssid);
   WiFi.begin(ssid, password);
-  Serial.println(F("Wifi... ready!"));
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(250);
+  }
+  Serial.print(F(" [+] Connected to "));
+  Serial.println(ssid);
+  Serial.print(" [+] IP address: ");
+  Serial.println(WiFi.localIP());
+
+  // WebServer
+  Serial.println("WebServer... ");
+  if (MDNS.begin("esp8266")) {
+    Serial.println(" [+] MDNS responder ready (esp8266)");
+  } else {
+    Serial.println(" [-] MDNS responder failed.");
+  }
+
+  server.on("/", handle_root);
+  server.onNotFound(handle_not_found);
+  server.on("/listcards", handle_list_cards);
+  server.on("/getcard", handle_get_card);
+  server.on("/updatecard", handle_update_card);
+  server.on("/deletecard", handle_delete_card);
+  server.on("/readcard", handle_read_card);
+  server.on("/writecard", handle_write_card);
+  server.begin();
+  Serial.println(" [+] WebServer ready!");
 
   // Print header
   Serial.println(F("======================================================"));
@@ -110,6 +141,8 @@ void setup() {
 }
 
 void loop() {
+  // Serve clients
+  server.handleClient();
   // Look for new cards
   yield();
   if (! mfrc522.PICC_IsNewCardPresent()) {
@@ -154,16 +187,19 @@ void print_fs() {
 void save_card(String uid) {
   // Create file for storing card
   File card_file = SPIFFS.open(CARDS_DIR + uid, "w+");
+  // Write first line, UID
+  card_file.println("+UID: " + uid);
 
   // Show some details of the PICC
   Serial.println("Card UID: " + uid);
   Serial.print(F("PICC type: "));
   MFRC522::PICC_Type piccType = mfrc522.PICC_GetType(mfrc522.uid.sak);
-  Serial.println(mfrc522.PICC_GetTypeName(piccType));
+  String picc_type = mfrc522.PICC_GetTypeName(piccType);
+  Serial.println(picc_type);
 
   // Iterate over all blocks
   MFRC522::MIFARE_Key key;
-  int picc_sectors = picc_blocks() / 4;
+  int picc_sectors = picc_blocks(picc_type) / 4;
   for (byte sector = 0; sector < picc_sectors; sector++) {
     // Try all keys until found the right one
     for (byte k = 0; k < NR_KNOWN_KEYS; k++) {
@@ -175,13 +211,60 @@ void save_card(String uid) {
       if (try_key_and_save_sector(&key, sector, &card_file)) break;
     }
   }
+  update_cards_list();
   mfrc522.PICC_HaltA();       // Halt PICC
   mfrc522.PCD_StopCrypto1();  // Stop encryption on PCD
 
   // Check saved card
   card_file.close();
-  Serial.println("PRINTING SAVED CARD...");
-  print_card(uid);
+  Serial.println("SAVED CARD " + uid);
+  //print_card(uid);
+}
+
+void save_card_json(String uid) {
+  // Create JSON for storing card
+  StaticJsonBuffer<2500> json_buffer;
+  JsonObject& json_card = json_buffer.createObject();
+
+  // Show some details of the PICC
+  Serial.println("Card UID: " + uid);
+  Serial.print(F("PICC type: "));
+  MFRC522::PICC_Type piccType = mfrc522.PICC_GetType(mfrc522.uid.sak);
+  String picc_type = mfrc522.PICC_GetTypeName(piccType);
+  Serial.println(picc_type);
+
+  // UID, PICC TYPE
+  json_card["uid"] = uid;
+  json_card["picc"] = picc_type;
+
+  // Sectors
+  JsonArray& json_sectors = json_card.createNestedArray("sectors");
+
+  // Iterate over all sectors
+  MFRC522::MIFARE_Key key;
+  int picc_sectors = picc_blocks(picc_type) / 4;
+  for (byte sector = 0; sector < picc_sectors; sector++) {
+
+    // Create JsonObject for each sector
+    JsonObject& json_sector = json_sectors.createNestedObject();
+    // Try all keys until found the right one
+    for (byte k = 0; k < NR_KNOWN_KEYS; k++) {
+      // Copy the known key into the MIFARE_Key structure
+      for (byte i = 0; i < MFRC522::MF_KEY_SIZE; i++) {
+        key.keyByte[i] = knownKeys[k][i];
+      }
+      // Try key
+      if (try_key_and_save_sector_json(&key, sector, &json_sector)) break;
+    }
+  }
+  
+  mfrc522.PICC_HaltA();       // Halt PICC
+  mfrc522.PCD_StopCrypto1();  // Stop encryption on PCD
+
+  save_card_json_to_file(&json_card);
+  Serial.println("SAVED CARD " + uid);
+  update_cards_list();
+  //print_card(uid);
 }
 
 /* Delete single card given UID
@@ -218,7 +301,7 @@ void update_cards_list() {
   Dir dir = SPIFFS.openDir(CARDS_DIR);
   cards_count = 0;
   for (int i = 0; dir.next(); i++) {
-    cards_list[i] = dir.fileName();
+    cards_list[i] = dir.fileName().substring(3);
     cards_count++;
     if (i >= MAX_CARDS_N) break;
   }
@@ -236,7 +319,8 @@ bool read_card(MFRC522* mfrc) {
   String uid = get_card_uid(mfrc522.uid.uidByte, mfrc522.uid.size);
   if (!check_card(uid)) {
     // Card not in flash, save it
-    save_card(uid);
+    //save_card(uid);
+    save_card_json(uid);
     return check_card(uid);
   } else {
     // Card already in flash, skip it
@@ -279,8 +363,50 @@ boolean try_key_and_save_sector(MFRC522::MIFARE_Key *key, byte sector, File* fil
     }
     block++;
   }
-  print_sector(&sector_str);
+  //print_sector(&sector_str);
   save_sector(&sector_str, file_ptr);
+
+  return result;
+}
+
+boolean try_key_and_save_sector_json(MFRC522::MIFARE_Key *key, byte sector, JsonObject* sector_ptr) {
+  boolean result = true;
+  struct Sector sector_str; // 0: Key, [1-3]: Content
+  sector_str.number = sector;
+
+  // Create block array and add it to json
+  JsonArray& json_blocks = sector_ptr->createNestedArray("blocks");
+  
+  // Read sector
+  byte block = sector * 4;
+  for (int i = 0; i < 4; i++) {
+    // Authenticate with A key
+    status = mfrc522.PCD_Authenticate(MFRC522::PICC_CMD_MF_AUTH_KEY_A, block, key, &(mfrc522.uid));
+    if (status != MFRC522::STATUS_OK) {
+      Serial.print(F("PCD_Authenticate() failed: "));
+      Serial.println(mfrc522.GetStatusCodeName(status));
+      return false;
+    }
+    // Read block
+    byte byteCount = sizeof(buffer);
+    status = mfrc522.MIFARE_Read(block, buffer, &byteCount);
+    if (status == MFRC522::STATUS_OK) {
+      // Successful read
+      json_blocks.add(byte_array_to_hex_string(buffer, BLOCK_SIZE));
+      result &= true;
+    } else {
+      // Error reading block
+      Serial.print(F("MIFARE_Read() failed: "));
+      Serial.println(mfrc522.GetStatusCodeName(status));
+      result &= false;
+    }
+    block++;
+  }
+  
+  // Save key if successful
+  if(result){
+    (*sector_ptr)["key"] = byte_array_to_hex_string((*key).keyByte, MFRC522::MF_KEY_SIZE);
+  }
 
   return result;
 }
@@ -300,9 +426,7 @@ String get_card_uid(byte *uid_buffer, byte bufferSize) {
 /* Get number of blocks given PICC type
      Return: Int as Active PICC's number of blocks
 */
-int picc_blocks() {
-  MFRC522::PICC_Type piccType = mfrc522.PICC_GetType(mfrc522.uid.sak);
-  String picc = mfrc522.PICC_GetTypeName(piccType);
+int picc_blocks(String picc) {
   if (picc.equals(MIFARE_1K)) {
     return 64;
   }
@@ -361,12 +485,36 @@ void print_sector(Sector* sector) {
 void save_sector(Sector* sector, File* f_ptr) {
   // Info
   f_ptr->print("+Sector ");
-  f_ptr->print(sector->number, DEC);
-  f_ptr->println(": " + sector->key);
+  f_ptr->println(sector->number, DEC);
+  //f_ptr->println(": " + sector->key);
+  fix_a_key(sector);
 
   // Blocks
   for (int i = 0; i < SECTOR_SIZE; i++) {
     f_ptr->println(sector->blocks[i]);
+  }
+}
+
+void save_card_json_to_file(JsonObject* json_card) {
+  String uid = (*json_card)["uid"];
+  File json_card_file = SPIFFS.open(CARDS_DIR+uid, "w+");
+  //File json_card_file = SPIFFS.open(CARDS_DIR+uid, "w+");
+  String json_card_string;
+  json_card->printTo(json_card_string);
+  Serial.println(json_card_string);
+  yield();
+  json_card_file.print(json_card_string);
+  json_card_file.close();
+}
+
+/* Places A key into 4th block. Condition flags
+    might not allow you to read A key so you get
+    zeroes.
+*/
+void fix_a_key(Sector* sector) {
+  String control_block = sector->blocks[3];
+  if(!control_block.startsWith(sector->key)) {
+    sector->blocks[3] = sector->key + sector->blocks[3].substring(12);
   }
 }
 
