@@ -77,6 +77,7 @@ void setup() {
   // Filesystem
   delay(50);
   Serial.println(F("Filesystem..."));
+  //SPIFFS.format();
   bool fs = SPIFFS.begin();
   Serial.println(fs ? " [+] Filesystem ready!" : " [-] Filesystem failed!");
   delete_all_cards();
@@ -126,11 +127,11 @@ void setup() {
   server.on("/", handle_root);
   server.onNotFound(handle_not_found);
   server.on("/listcards", handle_list_cards);
-  server.on("/getcard", handle_get_card);
-  server.on("/updatecard", handle_update_card);
-  server.on("/deletecard", handle_delete_card);
-  server.on("/readcard", handle_read_card);
-  server.on("/writecard", handle_write_card);
+  server.on("/card", HTTP_GET, handle_get_card);
+  server.on("/card", HTTP_PUT, handleFileUpload);
+  server.on("/card", HTTP_DELETE, handle_delete_card);
+  server.on("/readcard", HTTP_POST, handle_read_card);
+  server.on("/writecard", HTTP_POST, handle_write_card);
   server.begin();
   Serial.println(" [+] WebServer ready!");
 
@@ -142,6 +143,7 @@ void setup() {
 
 void loop() {
   // Serve clients
+  yield();
   server.handleClient();
   // Look for new cards
   yield();
@@ -184,7 +186,7 @@ void print_fs() {
 /*###########################################################*/
 
 /* Save card to filesystem */
-void save_card(String uid) {
+/*void save_card(String uid) {
   // Create file for storing card
   File card_file = SPIFFS.open(CARDS_DIR + uid, "w+");
   // Write first line, UID
@@ -219,11 +221,11 @@ void save_card(String uid) {
   card_file.close();
   Serial.println("SAVED CARD " + uid);
   //print_card(uid);
-}
+  }*/
 
 void save_card_json(String uid) {
   // Create JSON for storing card
-  StaticJsonBuffer<2500> json_buffer;
+  DynamicJsonBuffer json_buffer(2500);
   JsonObject& json_card = json_buffer.createObject();
 
   // Show some details of the PICC
@@ -235,6 +237,7 @@ void save_card_json(String uid) {
 
   // UID, PICC TYPE
   json_card["uid"] = uid;
+  json_card["name"] = uid;
   json_card["picc"] = picc_type;
 
   // Sectors
@@ -257,7 +260,7 @@ void save_card_json(String uid) {
       if (try_key_and_save_sector_json(&key, sector, &json_sector)) break;
     }
   }
-  
+
   mfrc522.PICC_HaltA();       // Halt PICC
   mfrc522.PCD_StopCrypto1();  // Stop encryption on PCD
 
@@ -271,8 +274,12 @@ void save_card_json(String uid) {
      Return: TRUE  if succesfully removed
              FALSE if not removed
 */
-bool delete_card(String uid) {
+/*bool delete_card(String uid) {
   return SPIFFS.remove(CARDS_DIR + uid);
+}*/
+
+bool delete_card_name(String name) {
+  return SPIFFS.remove(CARDS_DIR + name);
 }
 
 /* Delete all cards in filesystem
@@ -292,8 +299,16 @@ bool delete_all_cards() {
      Return: TRUE  if Card exists.
              False if Card doesn't exist
 */
-bool check_card(String uid) {
+/*bool check_card_uid(String uid) {
   return SPIFFS.exists(CARDS_DIR + uid);
+  }*/
+
+bool check_card_name(String name) {
+  bool ret = false;
+  for (int i = 0; i < cards_count && !ret; i++) {
+    ret = name.equals(cards_list[i]);
+  }
+  return ret;
 }
 
 /* Updates global variable cards_list */
@@ -317,11 +332,11 @@ void update_cards_list() {
 */
 bool read_card(MFRC522* mfrc) {
   String uid = get_card_uid(mfrc522.uid.uidByte, mfrc522.uid.size);
-  if (!check_card(uid)) {
+  if (!check_card_name(uid)) {
     // Card not in flash, save it
     //save_card(uid);
     save_card_json(uid);
-    return check_card(uid);
+    return check_card_name(uid);
   } else {
     // Card already in flash, skip it
     Serial.print(F("Card "));
@@ -332,7 +347,7 @@ bool read_card(MFRC522* mfrc) {
 }
 
 /* Read card content block by block */
-boolean try_key_and_save_sector(MFRC522::MIFARE_Key *key, byte sector, File* file_ptr) {
+/*boolean try_key_and_save_sector(MFRC522::MIFARE_Key *key, byte sector, File* file_ptr) {
   boolean result = true;
   struct Sector sector_str; // 0: Key, [1-3]: Content
   sector_str.number = sector;
@@ -367,7 +382,7 @@ boolean try_key_and_save_sector(MFRC522::MIFARE_Key *key, byte sector, File* fil
   save_sector(&sector_str, file_ptr);
 
   return result;
-}
+  }*/
 
 boolean try_key_and_save_sector_json(MFRC522::MIFARE_Key *key, byte sector, JsonObject* sector_ptr) {
   boolean result = true;
@@ -376,7 +391,7 @@ boolean try_key_and_save_sector_json(MFRC522::MIFARE_Key *key, byte sector, Json
 
   // Create block array and add it to json
   JsonArray& json_blocks = sector_ptr->createNestedArray("blocks");
-  
+
   // Read sector
   byte block = sector * 4;
   for (int i = 0; i < 4; i++) {
@@ -402,9 +417,9 @@ boolean try_key_and_save_sector_json(MFRC522::MIFARE_Key *key, byte sector, Json
     }
     block++;
   }
-  
+
   // Save key if successful
-  if(result){
+  if (result) {
     (*sector_ptr)["key"] = byte_array_to_hex_string((*key).keyByte, MFRC522::MF_KEY_SIZE);
   }
 
@@ -482,7 +497,7 @@ void print_sector(Sector* sector) {
 }
 
 /* Save sector to file. Appends sector. */
-void save_sector(Sector* sector, File* f_ptr) {
+/*void save_sector(Sector* sector, File* f_ptr) {
   // Info
   f_ptr->print("+Sector ");
   f_ptr->println(sector->number, DEC);
@@ -493,18 +508,27 @@ void save_sector(Sector* sector, File* f_ptr) {
   for (int i = 0; i < SECTOR_SIZE; i++) {
     f_ptr->println(sector->blocks[i]);
   }
-}
+  }*/
 
 void save_card_json_to_file(JsonObject* json_card) {
+  int sectors = (*json_card)["sectors"].size();
   String uid = (*json_card)["uid"];
-  File json_card_file = SPIFFS.open(CARDS_DIR+uid, "w+");
+  File json_card_file = SPIFFS.open(CARDS_DIR + uid, "w+");
   //File json_card_file = SPIFFS.open(CARDS_DIR+uid, "w+");
   String json_card_string;
   json_card->printTo(json_card_string);
+
   Serial.println(json_card_string);
-  yield();
   json_card_file.print(json_card_string);
   json_card_file.close();
+}
+
+void update_card_json_file(JsonObject* json_card, String old_name) {
+  String name = (*json_card)["name"];
+  if (old_name.equals("")) {
+    SPIFFS.remove(CARDS_DIR + old_name);
+  }
+  save_card_json_to_file(json_card);  
 }
 
 /* Places A key into 4th block. Condition flags
@@ -513,7 +537,7 @@ void save_card_json_to_file(JsonObject* json_card) {
 */
 void fix_a_key(Sector* sector) {
   String control_block = sector->blocks[3];
-  if(!control_block.startsWith(sector->key)) {
+  if (!control_block.startsWith(sector->key)) {
     sector->blocks[3] = sector->key + sector->blocks[3].substring(12);
   }
 }

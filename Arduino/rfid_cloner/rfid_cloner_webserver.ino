@@ -23,7 +23,7 @@ void handle_not_found() {
    prior to response. */
 void handle_list_cards() {
   // Update list if requested
-  if (server.arg("update").equals("yes")) {
+  if (server.hasArg("update") && server.arg("update").equals("yes")) {
     update_cards_list();
   }
 
@@ -51,10 +51,12 @@ void handle_list_cards() {
 }
 
 void handle_get_card() {
-  String uid = server.arg("uid");
-  if (check_card(uid)) {
+  String name = server.arg("name");
+  if (!server.hasArg("name")) {
+    server.send(400);
+  } else if (check_card_name(name)) {
     // Respond 200 and JSON
-    File card = SPIFFS.open(CARDS_DIR + uid, "r");
+    File card = SPIFFS.open(CARDS_DIR + name, "r");
     String card_string = "";
     while (card.available()) {
       //Lets read line by line from the file
@@ -68,11 +70,33 @@ void handle_get_card() {
 }
 
 void handle_update_card() {
-
+  String name = server.arg("name");
+  String old_name = server.arg("oldname");
+  if(server.hasArg("name")) {
+    DynamicJsonBuffer buffer(2500);
+    JsonObject& json_card = buffer.parseObject(server.arg("card"));
+    update_card_json_file(&json_card, server.hasArg("oldname") ? server.arg("oldname") : "");
+    server.send(200);
+  } else {
+    // Malformed
+    server.send(400);
+  }
 }
 
 void handle_delete_card() {
-
+  String name = server.arg("name");
+  if (!server.hasArg("name")) {
+     server.send(400);
+  } else if (check_card_name(name)) {
+    if(delete_card_name(name)) {
+      server.send(200);
+    } else {
+      server.send(500);
+    }
+  } else {
+    server.send(404);
+  }
+  update_cards_list();
 }
 
 void handle_read_card() {
