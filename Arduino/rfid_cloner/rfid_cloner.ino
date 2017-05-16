@@ -80,7 +80,8 @@ void setup() {
   //SPIFFS.format();
   bool fs = SPIFFS.begin();
   Serial.println(fs ? " [+] Filesystem ready!" : " [-] Filesystem failed!");
-  delete_all_cards();
+  //delete_all_cards();
+  erase_fs();
 
   // Update cards list
   Serial.println(F("Local cards..."));
@@ -128,7 +129,8 @@ void setup() {
   server.onNotFound(handle_not_found);
   server.on("/listcards", handle_list_cards);
   server.on("/card", HTTP_GET, handle_get_card);
-  server.on("/card", HTTP_PUT, handleFileUpload);
+  server.on("/card", HTTP_PUT, handle_update_card);
+  //server.on("/card", HTTP_PUT, [](){ server.send(200, "text/plain", ""); }, handle_update_card);
   server.on("/card", HTTP_DELETE, handle_delete_card);
   server.on("/readcard", HTTP_POST, handle_read_card);
   server.on("/writecard", HTTP_POST, handle_write_card);
@@ -148,18 +150,18 @@ void loop() {
   // Look for new cards
   yield();
   if (! mfrc522.PICC_IsNewCardPresent()) {
-    delay(150);
+    delay(50);
     return;
   }
   Serial.println(F("Card found!"));
 
   // Select one of the cards
-  yield();
   if (!mfrc522.PICC_ReadCardSerial()) {
     delay(50);
     return;
   }
 
+  yield();
   read_card(&mfrc522);
 }
 
@@ -176,9 +178,19 @@ void print_fs() {
   while (dir.next()) {
     Serial.print(dir.fileName());
     File f = dir.openFile("r");
-    Serial.println(f.size());
+    Serial.print(" - Size: "); Serial.println(f.size());
   }
   Serial.println(F("======================"));
+}
+
+bool erase_fs() {
+  Dir dir = SPIFFS.openDir("/");
+  bool allgood = true;
+  while (dir.next()) {
+    allgood &= SPIFFS.remove(dir.fileName());
+  }
+  update_cards_list();
+  return allgood;
 }
 
 /*###########################################################*/
@@ -279,7 +291,10 @@ void save_card_json(String uid) {
 }*/
 
 bool delete_card_name(String name) {
-  return SPIFFS.remove(CARDS_DIR + name);
+  Serial.println(" [+] Deleting card: " + name);
+  bool res = SPIFFS.remove(CARDS_DIR + name);
+  update_cards_list();
+  return res;
 }
 
 /* Delete all cards in filesystem
@@ -292,6 +307,7 @@ bool delete_all_cards() {
   while (dir.next()) {
     allgood &= SPIFFS.remove(dir.fileName());
   }
+  update_cards_list();
   return allgood;
 }
 
