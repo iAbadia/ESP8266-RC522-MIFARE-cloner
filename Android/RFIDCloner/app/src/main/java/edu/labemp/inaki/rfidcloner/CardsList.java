@@ -1,18 +1,13 @@
 package edu.labemp.inaki.rfidcloner;
 
-import android.app.ListActivity;
-import android.app.LoaderManager;
 import android.content.Context;
-import android.content.CursorLoader;
-import android.content.Loader;
-import android.database.Cursor;
 import android.os.Bundle;
 import android.support.annotation.LayoutRes;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
+import android.support.design.widget.FloatingActionButton;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
-import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -21,11 +16,11 @@ import android.view.ViewGroup;
 import android.view.animation.Animation;
 import android.view.animation.AnimationUtils;
 import android.widget.ArrayAdapter;
-import android.widget.LinearLayout;
 import android.widget.ListView;
-import android.widget.ProgressBar;
 import android.widget.TextView;
 
+
+import com.getbase.floatingactionbutton.FloatingActionsMenu;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -56,17 +51,29 @@ public class CardsList extends AppCompatActivity {
 
         listView.setAdapter(mAdapter);
 
+        //com.getbase.floatingactionbutton.FloatingActionButton actionC = new com.getbase.floatingactionbutton.FloatingActionButton(getBaseContext());
+        //actionC.setTitle("Hide/Show Action above");
+        /*actionC.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                //actionB.setVisibility(actionB.getVisibility() == View.GONE ? View.VISIBLE : View.GONE);
+            }
+        });*/
 
-        /*setContentView(R.layout.activity_cards_list);
-        Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
-        setSupportActionBar(toolbar);
+        final FloatingActionsMenu menuMultipleActions = (FloatingActionsMenu) findViewById(R.id.fab);
+        //menuMultipleActions.addButton(actionC);
 
-        FloatingActionButton fab = (FloatingActionButton) findViewById(R.id.fab);
-        fab.setOnClickListener(new View.OnClickListener() {
+        final com.getbase.floatingactionbutton.FloatingActionButton actionReadCard =
+                (com.getbase.floatingactionbutton.FloatingActionButton) findViewById(R.id.action_read_card);
+        final com.getbase.floatingactionbutton.FloatingActionButton actionWriteCard =
+                (com.getbase.floatingactionbutton.FloatingActionButton) findViewById(R.id.action_write_card);
+        final com.getbase.floatingactionbutton.FloatingActionButton actionNewCard =
+                (com.getbase.floatingactionbutton.FloatingActionButton) findViewById(R.id.action_new_card);
+
+        /*actionA.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                Snackbar.make(view, "Replace with your own action", Snackbar.LENGTH_LONG)
-                        .setAction("Action", null).show();
+                //actionA.setTitle("Action A clicked");
             }
         });*/
     }
