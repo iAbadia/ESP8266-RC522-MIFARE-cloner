@@ -1,6 +1,7 @@
 package edu.labemp.inaki.rfidcloner.View;
 
 import android.content.Context;
+import android.database.Cursor;
 import android.os.Bundle;
 import android.support.annotation.LayoutRes;
 import android.support.annotation.NonNull;
@@ -26,13 +27,15 @@ import java.util.List;
 
 import edu.labemp.inaki.rfidcloner.Controller.ESP8266Connector;
 import edu.labemp.inaki.rfidcloner.Model.Card;
+import edu.labemp.inaki.rfidcloner.Model.CardsDataSource;
 import edu.labemp.inaki.rfidcloner.R;
 
 public class CardsList extends AppCompatActivity {
 
-    private ArrayList<Card> cardsList;
+    private List<Card> cardsList;
     ListView listView;
     private CardListAdapter mAdapter;
+    private CardsDataSource mCardsDataSource;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -42,7 +45,7 @@ public class CardsList extends AppCompatActivity {
         setSupportActionBar(toolbar);
 
         listView=(ListView)findViewById(R.id.cards_listview);
-        cardsList = new ArrayList<>();
+        /*cardsList = new ArrayList<>();
 
         cardsList.add(new Card("Card1"));
         cardsList.add(new Card("Card2"));
@@ -68,9 +71,12 @@ public class CardsList extends AppCompatActivity {
         cardsList.add(new Card("Card2"));
         cardsList.add(new Card("Card3"));
         cardsList.add(new Card("Card4"));
-        cardsList.add(new Card("Card5"));
+        cardsList.add(new Card("Card5"));*/
 
-        mAdapter = new CardListAdapter(getApplicationContext(), R.layout.card_list_item, cardsList);
+        mCardsDataSource = new CardsDataSource(this);
+
+        //mAdapter = new CardListAdapter(getApplicationContext(), R.layout.card_list_item, cardsList);
+        mAdapter = new CardListAdapter(getApplicationContext(), R.layout.card_list_item, mCardsDataSource.getCards());
 
         listView.setAdapter(mAdapter);
 

@@ -1,20 +1,25 @@
 package edu.labemp.inaki.rfidcloner.Model;
 
+import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Created by inaki on 5/16/17.
  */
 
 public class Card {
-    private Sector[] sectors;
+    private List<Sector> sectors;
     private String name;
     private String uid;
     private int id;
+    private String picc;
 
 
-    public Card(Sector[] sectors, String name, String uid, int id) {
+    public Card(List<Sector> sectors, String name, String uid, int id) {
         this.sectors = sectors;
         this.name = name;
         this.uid = uid;
@@ -39,7 +44,7 @@ public class Card {
         this.id = id;
     }
 
-    public Sector[] getSectors() {
+    public List<Sector> getSectors() {
         return sectors;
     }
 
@@ -59,7 +64,7 @@ public class Card {
         this.uid = uid;
     }
 
-    public void setSectors(Sector[] sectors) {
+    public void setSectors(List<Sector> sectors) {
         this.sectors = sectors;
     }
 
@@ -71,21 +76,51 @@ public class Card {
         this.id = id;
     }
 
+    public String getPicc() {
+        return picc;
+    }
+
+    public void setPicc(String picc) {
+        this.picc = picc;
+    }
+
     public JSONObject toJSON() {
         return null;
     }
 
     private void parseJSONToCard(JSONObject cardJSON) {
-
+        try {
+            // Extract data
+            this.uid = cardJSON.getString("uid");
+            this.name = cardJSON.getString("name");
+            this.picc = cardJSON.getString("picc");
+            JSONArray sectorsJSONArray = cardJSON.getJSONArray("sectors");
+            // Get sectors
+            List<Sector> sectors = new ArrayList<>();
+            for (int i = 0; i<sectorsJSONArray.length(); i++) {
+                JSONObject sectorJSONObj = sectorsJSONArray.getJSONObject(i);
+                String sectorKey = sectorJSONObj.getString("key");
+                JSONArray sectorBlocks = sectorJSONObj.getJSONArray("blocks");
+                // Get blocks
+                List<String> blocks = new ArrayList<>();
+                for (int j = 0; j<sectorBlocks.length(); j++) {
+                    blocks.add(sectorsJSONArray.getString(j));
+                }
+                sectors.add(new Sector(sectorKey, blocks));
+            }
+            this.sectors = sectors;
+        }catch (JSONException e) {
+            e.printStackTrace();
+        }
     }
 }
 
 class Sector {
 
     private String key;
-    private String[] blocks;
+    private List<String> blocks;
 
-    public Sector(String key, String[] blocks) {
+    public Sector(String key, List<String> blocks) {
         this.key = key;
         this.blocks = blocks;
     }
@@ -98,11 +133,11 @@ class Sector {
         this.key = key;
     }
 
-    public String[] getBlocks() {
+    public List<String> getBlocks() {
         return blocks;
     }
 
-    public void setBlocks(String[] blocks) {
+    public void setBlocks(List<String> blocks) {
         this.blocks = blocks;
     }
 }

@@ -7,6 +7,9 @@ import android.database.sqlite.SQLiteDatabase;
 
 import org.json.JSONObject;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import edu.labemp.inaki.rfidcloner.Model.CardsContract.*;
 
 /**
@@ -41,7 +44,7 @@ public class CardsDataSource {
         return db.insert(CardEntry.TABLE_NAME, null, values);
     }
 
-    public Cursor getCards() {
+    public List<Card> getCards() {
         SQLiteDatabase db = mDbHelper.getReadableDatabase();
 
         // Define a projection that specifies which columns from the database
@@ -65,7 +68,16 @@ public class CardsDataSource {
                 sortOrder                                 // The sort order
         );
 
-        return cursor;
+        ArrayList<Card> cardsList = new ArrayList<>();
+
+        if (cursor.moveToFirst()) {
+            do {
+                cardsList.add(new Card(cursor.getString(cursor.getColumnIndex(CardEntry.COLUMN_NAME_JSONCARD)),
+                        cursor.getInt(cursor.getColumnIndex(CardEntry._ID))));
+            } while (cursor.moveToNext());
+        }
+
+        return cardsList;
     }
 
     public Card getCard(int id) {
