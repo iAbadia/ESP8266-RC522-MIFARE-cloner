@@ -36,9 +36,9 @@ void handle_list_cards() {
   jObj["number"] = cards_count;
 
   // Array of UIDs
-  JsonArray& uids = jObj.createNestedArray("uids");
+  JsonArray& names = jObj.createNestedArray("names");
   for (int i = 0; i < cards_count; i++) {
-    uids.add(cards_list[i].c_str());
+    names.add(cards_list[i].c_str());
   }
 
   // To String

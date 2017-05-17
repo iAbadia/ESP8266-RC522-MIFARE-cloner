@@ -14,11 +14,11 @@
         android:layout_centerVertical="true"
         android:layout_marginLeft="5dp"
         android:layout_marginRight="5dp"
-        android:layout_toStartOf="@+id/card_sync"
+        android:layout_toStartOf="@+id/card_uid"
         android:text="Card Name here!" />
 
     <TextView
-        android:id="@+id/card_sync"
+        android:id="@+id/card_uid"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_alignParentEnd="true"
