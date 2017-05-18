@@ -1,6 +1,7 @@
 package edu.labemp.inaki.rfidcloner.Controller;
 
 import android.content.Context;
+import android.content.Intent;
 import android.util.Log;
 
 import com.android.volley.Request;
@@ -14,6 +15,9 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import edu.labemp.inaki.rfidcloner.Model.Card;
 import edu.labemp.inaki.rfidcloner.Model.CardsDataSource;
 
@@ -23,11 +27,16 @@ import edu.labemp.inaki.rfidcloner.Model.CardsDataSource;
 
 public class ESP8266Connector {
 
+    public static String UPDATE_ACTION = "rfid.UPDATE_CARDS_LIST";
+    public static String UPDATE_ACTION_NO_NEW = "rfid.UPDATE_ACTION_NO_NEW";
+
     private String ESPURL = "http://192.168.0.136";
     private final String listCardsUrl = "/listcards";
     private final String cardUrl = "/card";
     private Context mContext;
     CardsDataSource mCardsDataSource;
+
+    private List<String> pendingCards = new ArrayList<>();
 
     public ESP8266Connector(Context context) {
         this.mContext = context;
@@ -39,25 +48,32 @@ public class ESP8266Connector {
         String url = ESPURL + listCardsUrl;
         // prepare the Request
         JsonObjectRequest getRequest = new JsonObjectRequest(Request.Method.GET, url, null,
-                new Response.Listener<JSONObject>()
-                {
+                new Response.Listener<JSONObject>() {
                     @Override
                     public void onResponse(JSONObject response) {
                         // display response
-                        try{
+                        try {
                             JSONArray names = response.getJSONArray("names");
-                            for (int i = 0; i<response.getInt("number"); i++) {
-                                getNewCard(names.getString(i));
+                            for (int i = 0; i < response.getInt("number"); i++) {
+                                pendingCards.add(names.getString(i));
+                            }
+                            if (response.getInt("number") <= 0) {
+                                Intent intent = new Intent();
+                                Log.d("ESP8266Connector", "Sending: " + UPDATE_ACTION_NO_NEW);
+                                intent.setAction(UPDATE_ACTION_NO_NEW);
+                                mContext.sendBroadcast(intent);
+                            } else {
+                                getPendingCards();
                             }
                         } catch (JSONException e) {
                             e.printStackTrace();
                         }
                         Log.d("Response", response.toString());
+                        // Log jic
 
                     }
                 },
-                new Response.ErrorListener()
-                {
+                new Response.ErrorListener() {
                     @Override
                     public void onErrorResponse(VolleyError error) {
                         Log.d("Error.Response", error.toString());
@@ -69,33 +85,44 @@ public class ESP8266Connector {
         queue.add(getRequest);
     }
 
-    public void getNewCard(String name) {
+    public void getPendingCards () {
+        String name = pendingCards.get(0);
+        pendingCards.remove(0);
         RequestQueue queue = Volley.newRequestQueue(mContext);
         String url = ESPURL + cardUrl + "?name=" + name;
         // prepare the Request
         JsonObjectRequest getRequest = new JsonObjectRequest(Request.Method.GET, url, null,
-                new Response.Listener<JSONObject>()
-                {
+                new Response.Listener<JSONObject>() {
                     @Override
                     public void onResponse(JSONObject response) {
                         // display response
                         long id = mCardsDataSource.addCard(response);
                         Log.d("Response", response.toString());
                         Log.d("Card added to DB, ID: ", Long.toString(id));
-
-                    }
-                },
-                new Response.ErrorListener()
-                {
-                    @Override
-                    public void onErrorResponse(VolleyError error) {
-                        Log.d("Error.Response", error.toString());
-                    }
+                        // Notify CardsListActivity
+                        Intent intent = new Intent();
+                        Log.d("ESP8266Connector", "Sending: " + UPDATE_ACTION);
+                        intent.setAction(UPDATE_ACTION);
+                        mContext.sendBroadcast(intent);
+                        // Recursive
+                        if (pendingCards.size() > 0) {
+                            // Still pending cards
+                            getPendingCards();
+                        }
                 }
+    },
+            new Response.ErrorListener()
+
+    {
+        @Override
+        public void onErrorResponse (VolleyError error){
+        Log.d("Error.Response", error.toString());
+    }
+    }
         );
 
-        // add it to the RequestQueue
+    // add it to the RequestQueue
         queue.add(getRequest);
-    }
+}
 
 }

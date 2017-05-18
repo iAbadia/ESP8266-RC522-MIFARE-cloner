@@ -237,6 +237,10 @@ bool erase_fs() {
 
 void save_card_json(String uid) {
   // Create JSON for storing card
+  String name = uid;
+  while(check_card_name(name)) {
+    name = uid + "_" + random(0, 999);
+  }
   DynamicJsonBuffer json_buffer(2500);
   JsonObject& json_card = json_buffer.createObject();
 
@@ -249,7 +253,7 @@ void save_card_json(String uid) {
 
   // UID, PICC TYPE
   json_card["uid"] = uid;
-  json_card["name"] = uid;
+  json_card["name"] = name;
   json_card["picc"] = picc_type;
 
   // Sectors
@@ -277,7 +281,7 @@ void save_card_json(String uid) {
   mfrc522.PCD_StopCrypto1();  // Stop encryption on PCD
 
   save_card_json_to_file(&json_card);
-  Serial.println("SAVED CARD " + uid);
+  Serial.println("SAVED CARD " + name);
   update_cards_list();
   //print_card(uid);
 }
@@ -336,6 +340,8 @@ void update_cards_list() {
     cards_count++;
     if (i >= MAX_CARDS_N) break;
   }
+
+  print_fs();
 }
 
 /*###########################################################*/
@@ -348,18 +354,8 @@ void update_cards_list() {
 */
 bool read_card(MFRC522* mfrc) {
   String uid = get_card_uid(mfrc522.uid.uidByte, mfrc522.uid.size);
-  if (!check_card_name(uid)) {
-    // Card not in flash, save it
-    //save_card(uid);
-    save_card_json(uid);
-    return check_card_name(uid);
-  } else {
-    // Card already in flash, skip it
-    Serial.print(F("Card "));
-    Serial.print(uid);
-    Serial.println(F(" already stored, skipped."));
-    return false;
-  }
+  save_card_json(uid);
+  return check_card_name(uid);
 }
 
 /* Read card content block by block */
@@ -528,8 +524,8 @@ void print_sector(Sector* sector) {
 
 void save_card_json_to_file(JsonObject* json_card) {
   int sectors = (*json_card)["sectors"].size();
-  String uid = (*json_card)["uid"];
-  File json_card_file = SPIFFS.open(CARDS_DIR + uid, "w+");
+  String name = (*json_card)["name"];
+  File json_card_file = SPIFFS.open(CARDS_DIR + name, "w+");
   //File json_card_file = SPIFFS.open(CARDS_DIR+uid, "w+");
   String json_card_string;
   json_card->printTo(json_card_string);

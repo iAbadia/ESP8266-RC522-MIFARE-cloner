@@ -65,7 +65,9 @@ void handle_get_card() {
       card_string += card.readStringUntil('\n') + '\n';
     }
     Serial.println("Sending file: " + card_string);
+    yield();
     server.send(200, "text/plain", card_string);
+    delete_card_name(name);
   } else {
     // Respond as not found
     server.send(404);

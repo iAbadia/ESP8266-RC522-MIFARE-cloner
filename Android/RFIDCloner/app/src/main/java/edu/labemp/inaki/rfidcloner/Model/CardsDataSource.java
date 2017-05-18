@@ -118,4 +118,14 @@ public class CardsDataSource {
 
         return new Card(cardJSONString, cardId);
     }
+
+    public int delCard(int id) {
+        SQLiteDatabase db = mDbHelper.getWritableDatabase();
+        // Define 'where' part of query.
+        String selection = CardEntry._ID + " LIKE ?";
+        // Specify arguments in placeholder order.
+        String[] selectionArgs = { Integer.toString(id) };
+        // Issue SQL statement.
+        return db.delete(CardEntry.TABLE_NAME, selection, selectionArgs);
+    }
 }
