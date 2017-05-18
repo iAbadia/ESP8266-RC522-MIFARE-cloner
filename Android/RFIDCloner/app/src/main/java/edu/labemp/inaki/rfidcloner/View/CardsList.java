@@ -92,8 +92,6 @@ public class CardsList extends AppCompatActivity {
         final FloatingActionsMenu menuMultipleActions = (FloatingActionsMenu) findViewById(R.id.fab);
 
 
-        final com.getbase.floatingactionbutton.FloatingActionButton actionWriteCard =
-                (com.getbase.floatingactionbutton.FloatingActionButton) findViewById(R.id.action_write_card);
         final com.getbase.floatingactionbutton.FloatingActionButton actionNewCard =
                 (com.getbase.floatingactionbutton.FloatingActionButton) findViewById(R.id.action_new_card);
         final com.getbase.floatingactionbutton.FloatingActionButton actionUpdateCards =
@@ -162,6 +160,8 @@ public class CardsList extends AppCompatActivity {
 
         //noinspection SimplifiableIfStatement
         if (id == R.id.action_settings) {
+            Intent i = new Intent(CardsList.this, SettingsActivity.class);
+            startActivity(i);
             return true;
         }
 

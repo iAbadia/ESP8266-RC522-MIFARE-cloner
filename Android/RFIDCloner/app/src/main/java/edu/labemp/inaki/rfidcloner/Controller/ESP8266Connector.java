@@ -2,6 +2,8 @@ package edu.labemp.inaki.rfidcloner.Controller;
 
 import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
+import android.preference.PreferenceManager;
 import android.util.Log;
 
 import com.android.volley.Request;
@@ -18,8 +20,8 @@ import org.json.JSONObject;
 import java.util.ArrayList;
 import java.util.List;
 
-import edu.labemp.inaki.rfidcloner.Model.Card;
 import edu.labemp.inaki.rfidcloner.Model.CardsDataSource;
+import edu.labemp.inaki.rfidcloner.View.SettingsActivity;
 
 /**
  * Created by inaki on 5/17/17.
@@ -30,7 +32,8 @@ public class ESP8266Connector {
     public static String UPDATE_ACTION = "rfid.UPDATE_CARDS_LIST";
     public static String UPDATE_ACTION_NO_NEW = "rfid.UPDATE_ACTION_NO_NEW";
 
-    private String ESPURL = "http://192.168.0.136";
+    private static final String ESPDEFURL = "192.168.0.136";
+
     private final String listCardsUrl = "/listcards";
     private final String cardUrl = "/card";
     private Context mContext;
@@ -44,6 +47,8 @@ public class ESP8266Connector {
     }
 
     public void getNewCards() {
+        SharedPreferences sharedPref = PreferenceManager.getDefaultSharedPreferences(mContext);
+        String ESPURL = "http://" + sharedPref.getString("esp8266_ip", ESPDEFURL);
         RequestQueue queue = Volley.newRequestQueue(mContext);
         String url = ESPURL + listCardsUrl;
         // prepare the Request
@@ -86,6 +91,10 @@ public class ESP8266Connector {
     }
 
     public void getPendingCards () {
+        // ESP IP
+        SharedPreferences sharedPref = PreferenceManager.getDefaultSharedPreferences(mContext);
+        String ESPURL = "http://" + sharedPref.getString("esp8266_ip", ESPDEFURL);
+        // Get card name
         String name = pendingCards.get(0);
         pendingCards.remove(0);
         RequestQueue queue = Volley.newRequestQueue(mContext);
