@@ -1,5 +1,9 @@
 #include <ESP8266WiFi.h>
 #include <WiFiClient.h>
+
+/* VERY F*** IMPORTANT
+    I EDITED ESP8266WebServer.h TO MAKE
+    HTTP_UPLOAD_BUFLEN 4096 B LONG*/
 #include <ESP8266WebServer.h>
 #include <ESP8266mDNS.h>
 #include <ArduinoJson.h>

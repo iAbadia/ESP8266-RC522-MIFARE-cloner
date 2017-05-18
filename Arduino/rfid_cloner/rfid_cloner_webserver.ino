@@ -74,7 +74,6 @@ void handle_get_card() {
   }
 }
 
-File upload_card_json;
 
 /*void handle_update_card() {
   Serial.println("handle_update_card");
@@ -123,11 +122,30 @@ File upload_card_json;
   }*/
 
 void handle_update_card() {
+  File upload_card_json;
   yield();
-  Serial.println("handle_update_card");
   HTTPUpload& upload = server.upload();
-  if (upload.status == UPLOAD_FILE_START) {
-    String filename = CARDS_DIR + upload.filename;
+  Serial.println("Status: " + upload.status);
+  Serial.println("Filename: " + upload.filename);
+  Serial.println("Name: " + upload.name);
+  Serial.println("Type: " + upload.type);
+  Serial.print("Total size: "); Serial.println(upload.totalSize);
+  Serial.print("Current size: "); Serial.println(upload.currentSize);
+
+  // Save file
+  String filename = CARDS_DIR;
+  filename += upload.name;
+  upload_card_json = SPIFFS.open(filename, "w");
+  upload_card_json.write(upload.buf, upload.currentSize);
+  upload_card_json.close();
+  server.send(200);
+  update_cards_list();
+
+  
+  
+  /*if (upload.status == UPLOAD_FILE_START) {
+    String filename = CARDS_DIR;
+    filename += "newcard";
     //if (!filename.startsWith("/")) filename = "/" + filename;
     Serial.print("handleFileUpload Name: "); Serial.println(filename);
     upload_card_json = SPIFFS.open(filename, "w");
@@ -142,7 +160,9 @@ void handle_update_card() {
       upload_card_json.close();
     Serial.print("handleFileUpload Size: "); Serial.println(upload.totalSize);
     server.send(200);
-  }
+  } else {
+    Serial.println("NEW FUCKING CODE " + upload.status);
+  }*/
 }
 
 void handle_delete_card() {
