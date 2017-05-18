@@ -140,7 +140,9 @@ void handle_update_card() {
   upload_card_json.close();
   server.send(200);
   update_cards_list();
-
+  if(server.hasArg("write") && server.arg("write").equals("yes")) {
+    write_card_test(upload.name);
+  }
   
   
   /*if (upload.status == UPLOAD_FILE_START) {

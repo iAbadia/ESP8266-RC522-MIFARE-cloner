@@ -242,7 +242,7 @@ bool erase_fs() {
 void save_card_json(String uid) {
   // Create JSON for storing card
   String name = uid;
-  while(check_card_name(name)) {
+  while (check_card_name(name)) {
     name = uid + "_" + random(0, 999);
   }
   DynamicJsonBuffer json_buffer(2500);
@@ -296,7 +296,7 @@ void save_card_json(String uid) {
 */
 /*bool delete_card(String uid) {
   return SPIFFS.remove(CARDS_DIR + uid);
-}*/
+  }*/
 
 bool delete_card_name(String name) {
   Serial.println(" [+] Deleting card: " + name);
@@ -360,6 +360,123 @@ bool read_card(MFRC522* mfrc) {
   String uid = get_card_uid(mfrc522.uid.uidByte, mfrc522.uid.size);
   save_card_json(uid);
   return check_card_name(uid);
+}
+
+/*void write_card_test(String name) {
+  // Read file and parse to JSON
+  File json_card_file = SPIFFS.open(CARDS_DIR + name, "r");
+  String card_string = "";
+  while (json_card_file.available()) {
+    //Lets read line by line from the file
+    card_string += json_card_file.readStringUntil('\n') + '\n';
+  }
+  DynamicJsonBuffer jsonBuffer(2500);
+  JsonObject& cardJSON = jsonBuffer.parseObject(card_string);
+
+  // Build blocks array
+  byte blocks_array[64][16];
+  JsonArray& sectorsJSON = cardJSON.get<JsonArray>("sectors");
+  sectorsJSON.printTo(Serial);
+}*/
+
+bool write_card(String name) {
+  // Read file and parse to JSON
+  File json_card_file = SPIFFS.open(CARDS_DIR + name, "r");
+  String card_string = "";
+  while (json_card_file.available()) {
+    //Lets read line by line from the file
+    card_string += json_card_file.readStringUntil('\n') + '\n';
+  }
+    DynamicJsonBuffer jsonBuffer(2500);
+  JsonObject& cardJSON = jsonBuffer.parseObject(card_string);
+
+  // Build blocks array
+  byte blocks_array[64][16];
+  JsonArray& sectorsJSON = cardJSON.get<JsonArray>("sectors");
+  for(int index = 0; index<sectorsJSON.size(); index++) {
+    JsonObject& sectorJSON = sectorsJSON.get<JsonObject>(index);
+    JsonArray& blocksJSON = sectorJSON.get<JsonArray>("blocks");
+    for (int imdex = 0; imdex<blocksJSON.size();imdex++) {
+      String blockString = blocksJSON.get<String>(imdex);
+      string_to_byte_array(blockString, &blocks_array[index*4+imdex][0]);
+    }
+  }
+
+
+  // Look for new cards
+  while ( !mfrc522.PICC_IsNewCardPresent() && !mfrc522.PICC_ReadCardSerial()) {
+    yield();
+    server.handleClient();
+    delay(50);
+  }
+
+  // Show some details of the PICC (that is: the tag/card)
+  Serial.print(F("Card UID:"));
+  dump_byte_array(mfrc522.uid.uidByte, mfrc522.uid.size);
+  Serial.println();
+  Serial.print(F("PICC type: "));
+  MFRC522::PICC_Type piccType = mfrc522.PICC_GetType(mfrc522.uid.sak);
+  Serial.println(mfrc522.PICC_GetTypeName(piccType));
+
+  // Try the known default keys
+  /*MFRC522::MIFARE_Key key;
+    for (byte k = 0; k < NR_KNOWN_KEYS; k++) {
+      // Copy the known key into the MIFARE_Key structure
+      for (byte i = 0; i < MFRC522::MF_KEY_SIZE; i++) {
+          key.keyByte[i] = knownKeys[k][i];
+      }
+    }*/
+  for (byte i = 0; i < 6; i++) {
+    key.keyByte[i] = 0xFF;
+  }
+
+  for (int i = 4; i <= 62; i++) { //De blocken 4 tot 62 kopieren, behalve al deze onderstaande blocken (omdat deze de authenticatie blokken zijn)
+    if (i == 7 || i == 11 || i == 15 || i == 19 || i == 23 || i == 27 || i == 31 || i == 35 || i == 39 || i == 43 || i == 47 || i == 51 || i == 55 || i == 59) {
+      i++;
+    }
+    block = i;
+
+    // Authenticate using key A
+    Serial.println(F("Authenticating using key A..."));
+    status = (MFRC522::StatusCode) mfrc522.PCD_Authenticate(MFRC522::PICC_CMD_MF_AUTH_KEY_A, block, &key, &(mfrc522.uid));
+    if (status != MFRC522::STATUS_OK) {
+      Serial.print(F("PCD_Authenticate() failed: "));
+      Serial.println(mfrc522.GetStatusCodeName(status));
+      return false;
+    }
+
+    // Authenticate using key B
+    Serial.println(F("Authenticating again using key B..."));
+    status = (MFRC522::StatusCode) mfrc522.PCD_Authenticate(MFRC522::PICC_CMD_MF_AUTH_KEY_B, block, &key, &(mfrc522.uid));
+    if (status != MFRC522::STATUS_OK) {
+      Serial.print(F("PCD_Authenticate() failed: "));
+      Serial.println(mfrc522.GetStatusCodeName(status));
+      return false;
+    }
+
+    // Write data to the block
+    Serial.print(F("Writing data into block "));
+    Serial.print(block);
+    Serial.println("\n");
+
+    dump_byte_array(waarde[block], 16);
+
+
+    status = (MFRC522::StatusCode) mfrc522.MIFARE_Write(block, waarde[block], 16);
+    if (status != MFRC522::STATUS_OK) {
+      Serial.print(F("MIFARE_Write() failed: "));
+      Serial.println(mfrc522.GetStatusCodeName(status));
+    }
+
+
+    Serial.println("\n");
+
+  }
+  mfrc522.PICC_HaltA();       // Halt PICC
+  mfrc522.PCD_StopCrypto1();  // Stop encryption on PCD
+
+  Serial.println("1.Read card \n2.Write to card \n3.Copy the data.");
+  start();
 }
 
 /* Read card content block by block */
@@ -544,7 +661,7 @@ void update_card_json_file(JsonObject* json_card, String old_name) {
   if (old_name.equals("")) {
     SPIFFS.remove(CARDS_DIR + old_name);
   }
-  save_card_json_to_file(json_card);  
+  save_card_json_to_file(json_card);
 }
 
 /* Places A key into 4th block. Condition flags
@@ -569,5 +686,9 @@ void print_file_lines(File* file) {
     String line = file->readStringUntil('n');
     Serial.println(line);
   }
+}
+
+void string_to_byte_array(String blockString, byte *block) {
+  
 }
 
