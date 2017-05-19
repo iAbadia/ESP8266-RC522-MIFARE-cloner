@@ -110,8 +110,8 @@ void setup() {
 
   // WIFI
   Serial.println(F("Wifi..."));
-  Serial.print(F(" [+] Connecting to "));
-  Serial.println(ssid);
+  Serial.print(F(" [+] Connecting to ")); Serial.println(ssid);
+  WiFi.mode(WIFI_STA);
   WiFi.begin(ssid, password);
   while (WiFi.status() != WL_CONNECTED) {
     delay(250);
@@ -149,14 +149,14 @@ void setup() {
 
 void loop() {
   // Serve clients
-  yield();
   server.handleClient();
   // Look for new cards
-  yield();
+  //yield();
   if (! mfrc522.PICC_IsNewCardPresent()) {
     delay(50);
     return;
   }
+  yield();
   Serial.println(F("Card found!"));
 
   // Select one of the cards
@@ -345,7 +345,7 @@ void update_cards_list() {
     if (i >= MAX_CARDS_N) break;
   }
 
-  print_fs();
+  //print_fs();
 }
 
 /*###########################################################*/
@@ -362,7 +362,8 @@ bool read_card(MFRC522* mfrc) {
   return check_card_name(uid);
 }
 
-/*void write_card_test(String name) {
+void write_card_test(String name) {
+  Serial.println("write_card_test");
   // Read file and parse to JSON
   File json_card_file = SPIFFS.open(CARDS_DIR + name, "r");
   String card_string = "";
@@ -376,10 +377,23 @@ bool read_card(MFRC522* mfrc) {
   // Build blocks array
   byte blocks_array[64][16];
   JsonArray& sectorsJSON = cardJSON.get<JsonArray>("sectors");
-  sectorsJSON.printTo(Serial);
-}*/
+  for(int index = 0; index<sectorsJSON.size(); index++) {
+    JsonObject& sectorJSON = sectorsJSON.get<JsonObject>(index);
+    JsonArray& blocksJSON = sectorJSON.get<JsonArray>("blocks");
+    for (int imdex = 0; imdex<blocksJSON.size();imdex++) {
+      String blockString = blocksJSON.get<String>(imdex);
+      string_to_byte_array(blockString, &blocks_array[index*4+imdex][0], 16);
+      String str = byte_array_to_hex_string(blocks_array[index*4+imdex], 16);
+      Serial.println(str);
+    }
+  }
+  /*for(int i = 0;i < 64;i++) {
+    String str = byte_array_to_hex_string(blocks_array[i], 16);
+    Serial.println(str);
+  }*/
+}
 
-bool write_card(String name) {
+/*bool write_card(String name) {
   // Read file and parse to JSON
   File json_card_file = SPIFFS.open(CARDS_DIR + name, "r");
   String card_string = "";
@@ -387,7 +401,7 @@ bool write_card(String name) {
     //Lets read line by line from the file
     card_string += json_card_file.readStringUntil('\n') + '\n';
   }
-    DynamicJsonBuffer jsonBuffer(2500);
+  DynamicJsonBuffer jsonBuffer(2500);
   JsonObject& cardJSON = jsonBuffer.parseObject(card_string);
 
   // Build blocks array
@@ -426,7 +440,7 @@ bool write_card(String name) {
           key.keyByte[i] = knownKeys[k][i];
       }
     }*/
-  for (byte i = 0; i < 6; i++) {
+  /*for (byte i = 0; i < 6; i++) {
     key.keyByte[i] = 0xFF;
   }
 
@@ -477,7 +491,7 @@ bool write_card(String name) {
 
   Serial.println("1.Read card \n2.Write to card \n3.Copy the data.");
   start();
-}
+}*/
 
 /* Read card content block by block */
 /*boolean try_key_and_save_sector(MFRC522::MIFARE_Key *key, byte sector, File* file_ptr) {
@@ -688,7 +702,37 @@ void print_file_lines(File* file) {
   }
 }
 
-void string_to_byte_array(String blockString, byte *block) {
-  
+void string_to_byte_array(String blockString, byte *block, int buflen) {
+  Serial.println("string_to_byte_array ");
+  Serial.println(blockString);
+  char* blockCharArray = const_cast<char*>(blockString.c_str());
+  Serial.println(blockCharArray);
+  for(int i = 0; i<buflen*2;i = i+2) {
+    block[i] = 0x00;
+    if (blockCharArray[i] <= 0x39) {
+      // 0-9
+      block[i] = (blockCharArray[i] - 0x30) << 4;
+    } else if(blockCharArray[i] <= 0x46) {
+      // A-F
+      block[i] = (blockCharArray[i] - 0x37) << 4;
+    } else {
+      // a-f
+      block[i] = (blockCharArray[i] - 0x57) << 4;
+    }
+
+    if (blockCharArray[i] <= 0x39) {
+      // 0-9
+      block[i] |= blockCharArray[i+1] - 0x30;
+    } else if(blockCharArray[i] <= 0x46) {
+      // A-F
+      block[i] |= blockCharArray[i+1] - 0x37;
+    } else {
+      // a-f
+      block[i] |= blockCharArray[i+1] - 0x57;
+    }
+    //Serial.print(block[i] < 0x10 ? "0" : "");
+    //Serial.print(block[i], HEX);
+  }
+
 }
 

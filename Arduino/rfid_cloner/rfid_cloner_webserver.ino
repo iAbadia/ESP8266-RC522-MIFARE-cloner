@@ -22,14 +22,15 @@ void handle_not_found() {
    is set to <yes> a local scan will be performed
    prior to response. */
 void handle_list_cards() {
-  yield();
+  Serial.println("handle_list_cards");
   // Update list if requested
   if (server.hasArg("update") && server.arg("update").equals("yes")) {
     update_cards_list();
   }
+  //yield();
 
   // Create JSON and send
-  DynamicJsonBuffer jsonBuffer(200);
+  StaticJsonBuffer<512> jsonBuffer;
 
   // Number of cards
   JsonObject& jObj = jsonBuffer.createObject();
@@ -52,7 +53,6 @@ void handle_list_cards() {
 }
 
 void handle_get_card() {
-  yield();
   String name = server.arg("name");
   if (!server.hasArg("name")) {
     server.send(400);
@@ -60,6 +60,7 @@ void handle_get_card() {
     // Respond 200 and JSON
     File card = SPIFFS.open(CARDS_DIR + name, "r");
     String card_string = "";
+    yield();
     while (card.available()) {
       //Lets read line by line from the file
       card_string += card.readStringUntil('\n') + '\n';
@@ -123,7 +124,6 @@ void handle_get_card() {
 
 void handle_update_card() {
   File upload_card_json;
-  yield();
   HTTPUpload& upload = server.upload();
   Serial.println("Status: " + upload.status);
   Serial.println("Filename: " + upload.filename);
@@ -132,6 +132,7 @@ void handle_update_card() {
   Serial.print("Total size: "); Serial.println(upload.totalSize);
   Serial.print("Current size: "); Serial.println(upload.currentSize);
 
+  yield();
   // Save file
   String filename = CARDS_DIR;
   filename += upload.name;
