@@ -28,7 +28,7 @@ void handle_list_cards() {
     update_cards_list();
   }
   //yield();
-
+  
   // Create JSON and send
   StaticJsonBuffer<512> jsonBuffer;
 
@@ -142,30 +142,9 @@ void handle_update_card() {
   server.send(200);
   update_cards_list();
   if(server.hasArg("write") && server.arg("write").equals("yes")) {
-    write_card_test(upload.name);
+    write_card(upload.name);
   }
-  
-  
-  /*if (upload.status == UPLOAD_FILE_START) {
-    String filename = CARDS_DIR;
-    filename += "newcard";
-    //if (!filename.startsWith("/")) filename = "/" + filename;
-    Serial.print("handleFileUpload Name: "); Serial.println(filename);
-    upload_card_json = SPIFFS.open(filename, "w");
-    filename = String();
-  } else if (upload.status == UPLOAD_FILE_WRITE) {
-    Serial.print("handleFileUpload Data: "); Serial.println(upload.currentSize);
-    if (upload_card_json)
-      upload_card_json.write(upload.buf, upload.currentSize);
-  } else if (upload.status == UPLOAD_FILE_END) {
-    if (upload_card_json)
-      upload_card_json.write(upload.buf, upload.currentSize);
-      upload_card_json.close();
-    Serial.print("handleFileUpload Size: "); Serial.println(upload.totalSize);
-    server.send(200);
-  } else {
-    Serial.println("NEW FUCKING CODE " + upload.status);
-  }*/
+  server.send(200);
 }
 
 void handle_delete_card() {

@@ -36,9 +36,9 @@ byte card_dump[64][16];
 #define MIFARE_1K "MIFARE 1KB"
 #define MIFARE_4K "MIFARE_4KB"
 
-MFRC522::StatusCode status;
+MFRC522::StatusCode status_global;
 
-MFRC522::MIFARE_Key key;
+MFRC522::MIFARE_Key key_global;
 
 #define NR_KNOWN_KEYS   8
 byte knownKeys[NR_KNOWN_KEYS][MFRC522::MF_KEY_SIZE] =  {
@@ -59,8 +59,12 @@ typedef struct Sector {
 };
 
 /* WIFI */
-const char* ssid     = "OpenWRT";
-const char* password = "9484113580";
+//const char* ssid     = "OpenWRT";
+//const char* password = "9484113580";
+//const char* ssid     = "ARPANET";
+//const char* password = "C1FC0E5D";
+const char* ssid     = "ASUSAP";
+const char* password = "1234567890";
 
 /* WebServer */
 ESP8266WebServer server(80);
@@ -74,9 +78,16 @@ int cards_count = 0;
 
 
 void setup() {
+  ESP.wdtDisable();
+  ESP.wdtEnable(WDTO_8S);
   // Serial init
   Serial.begin(115200);    // Initialize serial communications
   Serial.println(F("\nBooting...."));
+
+  // SPI init
+  Serial.println(F("SPI..."));
+  SPI.begin();
+  Serial.println(F(" [+] SPI ready!"));
 
   // Filesystem
   delay(50);
@@ -94,15 +105,11 @@ void setup() {
   Serial.print(cards_count);
   Serial.println(F(" cards!"));
 
-  // SPI init
-  Serial.println(F("SPI..."));
-  SPI.begin();
-  Serial.println(F(" [+] SPI ready!"));
-
   delay(50);
   // RC522 init
   Serial.println(F("RC522..."));
   mfrc522.PCD_Init();
+  delay(50);
   mfrc522.PCD_Init();
   Serial.print(" [+] ");
   mfrc522.PCD_DumpVersionToSerial();
@@ -111,10 +118,10 @@ void setup() {
   // WIFI
   Serial.println(F("Wifi..."));
   Serial.print(F(" [+] Connecting to ")); Serial.println(ssid);
-  WiFi.mode(WIFI_STA);
   WiFi.begin(ssid, password);
   while (WiFi.status() != WL_CONNECTED) {
     delay(250);
+    yield();
   }
   Serial.print(F(" [+] Connected to "));
   Serial.println(ssid);
@@ -144,16 +151,17 @@ void setup() {
   // Print header
   Serial.println(F("======================================================"));
   Serial.print(F("Scanning for cards... "));
-
 }
 
 void loop() {
   // Serve clients
+  yield();
   server.handleClient();
   // Look for new cards
   //yield();
   if (! mfrc522.PICC_IsNewCardPresent()) {
     delay(50);
+    ESP.wdtFeed();
     return;
   }
   yield();
@@ -362,7 +370,7 @@ bool read_card(MFRC522* mfrc) {
   return check_card_name(uid);
 }
 
-void write_card_test(String name) {
+/*void write_card_test(String name) {
   Serial.println("write_card_test");
   // Read file and parse to JSON
   File json_card_file = SPIFFS.open(CARDS_DIR + name, "r");
@@ -376,6 +384,7 @@ void write_card_test(String name) {
 
   // Build blocks array
   byte blocks_array[64][16];
+
   JsonArray& sectorsJSON = cardJSON.get<JsonArray>("sectors");
   for(int index = 0; index<sectorsJSON.size(); index++) {
     JsonObject& sectorJSON = sectorsJSON.get<JsonObject>(index);
@@ -383,17 +392,15 @@ void write_card_test(String name) {
     for (int imdex = 0; imdex<blocksJSON.size();imdex++) {
       String blockString = blocksJSON.get<String>(imdex);
       string_to_byte_array(blockString, &blocks_array[index*4+imdex][0], 16);
-      String str = byte_array_to_hex_string(blocks_array[index*4+imdex], 16);
-      Serial.println(str);
     }
   }
-  /*for(int i = 0;i < 64;i++) {
+  for(int i = 0;i < 64;i++) {
     String str = byte_array_to_hex_string(blocks_array[i], 16);
     Serial.println(str);
+  }
   }*/
-}
 
-/*bool write_card(String name) {
+bool write_card(String name) {
   // Read file and parse to JSON
   File json_card_file = SPIFFS.open(CARDS_DIR + name, "r");
   String card_string = "";
@@ -407,19 +414,26 @@ void write_card_test(String name) {
   // Build blocks array
   byte blocks_array[64][16];
   JsonArray& sectorsJSON = cardJSON.get<JsonArray>("sectors");
-  for(int index = 0; index<sectorsJSON.size(); index++) {
+  for (int index = 0; index < sectorsJSON.size(); index++) {
     JsonObject& sectorJSON = sectorsJSON.get<JsonObject>(index);
     JsonArray& blocksJSON = sectorJSON.get<JsonArray>("blocks");
-    for (int imdex = 0; imdex<blocksJSON.size();imdex++) {
+    for (int imdex = 0; imdex < blocksJSON.size(); imdex++) {
       String blockString = blocksJSON.get<String>(imdex);
-      string_to_byte_array(blockString, &blocks_array[index*4+imdex][0]);
+      string_to_byte_array(blockString, &blocks_array[index * 4 + imdex][0], 16);
     }
   }
-
-
+  // blocks_array now has card as byte arrays
+  
   // Look for new cards
+  Serial.println("Ready to write, insert card now...");
+  for(int i = 4;i>0;i--) {
+    ESP.wdtFeed();
+    Serial.print(i); Serial.print(" ");
+    delay(1000);
+  }
+  Serial.println();
   while ( !mfrc522.PICC_IsNewCardPresent() && !mfrc522.PICC_ReadCardSerial()) {
-    yield();
+    ESP.wdtFeed();
     server.handleClient();
     delay(50);
   }
@@ -432,18 +446,11 @@ void write_card_test(String name) {
   MFRC522::PICC_Type piccType = mfrc522.PICC_GetType(mfrc522.uid.sak);
   Serial.println(mfrc522.PICC_GetTypeName(piccType));
 
-  // Try the known default keys
-  /*MFRC522::MIFARE_Key key;
-    for (byte k = 0; k < NR_KNOWN_KEYS; k++) {
-      // Copy the known key into the MIFARE_Key structure
-      for (byte i = 0; i < MFRC522::MF_KEY_SIZE; i++) {
-          key.keyByte[i] = knownKeys[k][i];
-      }
-    }*/
-  /*for (byte i = 0; i < 6; i++) {
+  MFRC522::MIFARE_Key key;
+  for (byte i = 0; i < 6; i++) {
     key.keyByte[i] = 0xFF;
   }
-
+  MFRC522::StatusCode status;
   for (int i = 4; i <= 62; i++) { //De blocken 4 tot 62 kopieren, behalve al deze onderstaande blocken (omdat deze de authenticatie blokken zijn)
     if (i == 7 || i == 11 || i == 15 || i == 19 || i == 23 || i == 27 || i == 31 || i == 35 || i == 39 || i == 43 || i == 47 || i == 51 || i == 55 || i == 59) {
       i++;
@@ -451,8 +458,13 @@ void write_card_test(String name) {
     block = i;
 
     // Authenticate using key A
-    Serial.println(F("Authenticating using key A..."));
-    status = (MFRC522::StatusCode) mfrc522.PCD_Authenticate(MFRC522::PICC_CMD_MF_AUTH_KEY_A, block, &key, &(mfrc522.uid));
+    Serial.print(F("Authenticating using key A... "));
+    for(int ks = 0;ks<6;ks++) {
+      Serial.print(key.keyByte[ks], HEX);
+    }
+    Serial.println();
+    //status = mfrc522.PCD_Authenticate(MFRC522::PICC_CMD_MF_AUTH_KEY_A, block, key, &(mfrc522.uid));
+    status = mfrc522.PCD_Authenticate(MFRC522::PICC_CMD_MF_AUTH_KEY_A, block, &key, &(mfrc522.uid));
     if (status != MFRC522::STATUS_OK) {
       Serial.print(F("PCD_Authenticate() failed: "));
       Serial.println(mfrc522.GetStatusCodeName(status));
@@ -473,10 +485,10 @@ void write_card_test(String name) {
     Serial.print(block);
     Serial.println("\n");
 
-    dump_byte_array(waarde[block], 16);
+    dump_byte_array(blocks_array[block], 16);
 
 
-    status = (MFRC522::StatusCode) mfrc522.MIFARE_Write(block, waarde[block], 16);
+    status = (MFRC522::StatusCode) mfrc522.MIFARE_Write(block, blocks_array[block], 16);
     if (status != MFRC522::STATUS_OK) {
       Serial.print(F("MIFARE_Write() failed: "));
       Serial.println(mfrc522.GetStatusCodeName(status));
@@ -488,10 +500,9 @@ void write_card_test(String name) {
   }
   mfrc522.PICC_HaltA();       // Halt PICC
   mfrc522.PCD_StopCrypto1();  // Stop encryption on PCD
-
-  Serial.println("1.Read card \n2.Write to card \n3.Copy the data.");
-  start();
-}*/
+  
+  return true;
+}
 
 /* Read card content block by block */
 /*boolean try_key_and_save_sector(MFRC522::MIFARE_Key *key, byte sector, File* file_ptr) {
@@ -539,6 +550,7 @@ boolean try_key_and_save_sector_json(MFRC522::MIFARE_Key *key, byte sector, Json
   // Create block array and add it to json
   JsonArray& json_blocks = sector_ptr->createNestedArray("blocks");
 
+  MFRC522::StatusCode status;
   // Read sector
   byte block = sector * 4;
   for (int i = 0; i < 4; i++) {
@@ -607,7 +619,7 @@ int picc_blocks(String picc) {
 /* Dump byte array to Serial */
 void dump_byte_array(byte *buffer, byte bufferSize) {
   for (byte i = 0; i < bufferSize; i++) {
-    Serial.print(buffer[i] < 0x10 ? " 0" : " ");
+    Serial.print(buffer[i] < 0x10 ? "0" : "");
     Serial.print(buffer[i], HEX);
   }
 }
@@ -703,36 +715,31 @@ void print_file_lines(File* file) {
 }
 
 void string_to_byte_array(String blockString, byte *block, int buflen) {
-  Serial.println("string_to_byte_array ");
-  Serial.println(blockString);
   char* blockCharArray = const_cast<char*>(blockString.c_str());
-  Serial.println(blockCharArray);
-  for(int i = 0; i<buflen*2;i = i+2) {
+  //Serial.println(blockCharArray);
+  for (int i = 0; i < buflen; i++) {
     block[i] = 0x00;
-    if (blockCharArray[i] <= 0x39) {
+    if (blockCharArray[i * 2] <= 0x39) {
       // 0-9
-      block[i] = (blockCharArray[i] - 0x30) << 4;
-    } else if(blockCharArray[i] <= 0x46) {
+      block[i] = (blockCharArray[i * 2] - 0x30) << 4;
+    } else if (blockCharArray[i] <= 0x46) {
       // A-F
-      block[i] = (blockCharArray[i] - 0x37) << 4;
+      block[i] = (blockCharArray[i * 2] - 0x37) << 4;
     } else {
       // a-f
-      block[i] = (blockCharArray[i] - 0x57) << 4;
+      block[i] = (blockCharArray[i * 2] - 0x57) << 4;
     }
 
-    if (blockCharArray[i] <= 0x39) {
+    if (blockCharArray[(i * 2) + 1] <= 0x39) {
       // 0-9
-      block[i] |= blockCharArray[i+1] - 0x30;
-    } else if(blockCharArray[i] <= 0x46) {
+      block[i] |= blockCharArray[(i * 2) + 1] - 0x30;
+    } else if (blockCharArray[i] <= 0x46) {
       // A-F
-      block[i] |= blockCharArray[i+1] - 0x37;
+      block[i] |= blockCharArray[(i * 2) + 1] - 0x37;
     } else {
       // a-f
-      block[i] |= blockCharArray[i+1] - 0x57;
+      block[i] |= blockCharArray[(i * 2) + 1] - 0x57;
     }
-    //Serial.print(block[i] < 0x10 ? "0" : "");
-    //Serial.print(block[i], HEX);
   }
-
 }
 
