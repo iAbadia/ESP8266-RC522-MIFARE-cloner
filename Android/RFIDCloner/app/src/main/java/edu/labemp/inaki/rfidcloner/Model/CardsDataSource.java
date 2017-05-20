@@ -2,14 +2,18 @@ package edu.labemp.inaki.rfidcloner.Model;
 
 import android.content.ContentValues;
 import android.content.Context;
+import android.content.Intent;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
+import android.util.Log;
+import android.widget.Toast;
 
 import org.json.JSONObject;
 
 import java.util.ArrayList;
 import java.util.List;
 
+import edu.labemp.inaki.rfidcloner.Controller.ESP8266Connector;
 import edu.labemp.inaki.rfidcloner.Model.CardsContract.*;
 
 /**
@@ -129,5 +133,18 @@ public class CardsDataSource {
         String[] selectionArgs = { Integer.toString(id) };
         // Issue SQL statement.
         return db.delete(CardEntry.TABLE_NAME, selection, selectionArgs);
+    }
+
+    public void createEmptyCard(Context context) {
+        addCard(Card.getEmptyCardJson());
+        Toast.makeText(context, "New card added", Toast.LENGTH_SHORT).show();
+        notifyCardsList(context, ESP8266Connector.UPDATE_ACTION);
+    }
+
+    public void notifyCardsList(Context context, String action) {
+        Intent intent = new Intent();
+        Log.d("ESP8266Connector", "Sending: " + action);
+        intent.setAction(action);
+        context.sendBroadcast(intent);
     }
 }

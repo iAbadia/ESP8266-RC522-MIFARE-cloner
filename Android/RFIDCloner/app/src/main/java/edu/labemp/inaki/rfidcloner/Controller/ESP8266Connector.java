@@ -5,6 +5,7 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.preference.PreferenceManager;
 import android.util.Log;
+import android.widget.Toast;
 
 import com.android.volley.Request;
 import com.android.volley.RequestQueue;
@@ -66,10 +67,8 @@ public class ESP8266Connector {
                                 pendingCards.add(names.getString(i));
                             }
                             if (response.getInt("number") <= 0) {
-                                Intent intent = new Intent();
-                                Log.d("ESP8266Connector", "Sending: " + UPDATE_ACTION_NO_NEW);
-                                intent.setAction(UPDATE_ACTION_NO_NEW);
-                                mContext.sendBroadcast(intent);
+                                mCardsDataSource.notifyCardsList(mContext, UPDATE_ACTION_NO_NEW);
+                                Toast.makeText(mContext, "No new cards to update", Toast.LENGTH_SHORT).show();
                             } else {
                                 getPendingCards();
                             }
@@ -84,6 +83,7 @@ public class ESP8266Connector {
                 new Response.ErrorListener() {
                     @Override
                     public void onErrorResponse(VolleyError error) {
+                        Toast.makeText(mContext, "Error connecting to ESP8266", Toast.LENGTH_SHORT).show();
                         Log.d("Error.Response", error.toString());
                     }
                 }
@@ -93,7 +93,7 @@ public class ESP8266Connector {
         queue.add(getRequest);
     }
 
-    public void getPendingCards () {
+    public void getPendingCards() {
         // ESP IP
         SharedPreferences sharedPref = PreferenceManager.getDefaultSharedPreferences(mContext);
         String ESPURL = "http://" + sharedPref.getString("esp8266_ip", ESPDEFURL);
@@ -112,30 +112,30 @@ public class ESP8266Connector {
                         Log.d("Response", response.toString());
                         Log.d("Card added to DB, ID: ", Long.toString(id));
                         // Notify CardsListActivity
-                        Intent intent = new Intent();
-                        Log.d("ESP8266Connector", "Sending: " + UPDATE_ACTION);
-                        intent.setAction(UPDATE_ACTION);
-                        mContext.sendBroadcast(intent);
+                        mCardsDataSource.notifyCardsList(mContext, UPDATE_ACTION);
                         // Recursive
                         if (pendingCards.size() > 0) {
                             // Still pending cards
                             getPendingCards();
+                        } else {
+                            Toast.makeText(mContext, "All cards updated!", Toast.LENGTH_SHORT).show();
                         }
-                }
-    },
-            new Response.ErrorListener()
+                    }
+                },
+                new Response.ErrorListener()
 
-    {
-        @Override
-        public void onErrorResponse (VolleyError error){
-        Log.d("Error.Response", error.toString());
-    }
-    }
+                {
+                    @Override
+                    public void onErrorResponse(VolleyError error) {
+                        Toast.makeText(mContext, "Error connecting to ESP8266", Toast.LENGTH_SHORT).show();
+                        Log.d("Error.Response", error.toString());
+                    }
+                }
         );
 
-    // add it to the RequestQueue
+        // add it to the RequestQueue
         queue.add(getRequest);
-}
+    }
 
     public boolean sendCardToWrite(int id) {
         try {
@@ -148,16 +148,14 @@ public class ESP8266Connector {
 
 
             JsonObjectRequest putRequest = new JsonObjectRequest(Request.Method.PUT, url, jsonCard,
-                    new Response.Listener<JSONObject>()
-                    {
+                    new Response.Listener<JSONObject>() {
                         @Override
                         public void onResponse(JSONObject response) {
                             // response
                             Log.d("Response", response.toString());
                         }
                     },
-                    new Response.ErrorListener()
-                    {
+                    new Response.ErrorListener() {
                         @Override
                         public void onErrorResponse(VolleyError error) {
                             // error
@@ -167,8 +165,7 @@ public class ESP8266Connector {
             ) {
 
                 @Override
-                public Map<String, String> getHeaders()
-                {
+                public Map<String, String> getHeaders() {
                     Map<String, String> headers = new HashMap<String, String>();
                     headers.put("Content-Type", "application/json");
                     headers.put("Accept", "application/json");

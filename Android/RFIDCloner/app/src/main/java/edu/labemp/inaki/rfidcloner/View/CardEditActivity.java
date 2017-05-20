@@ -31,4 +31,6 @@ public class CardEditActivity extends AppCompatActivity {
         nameEditText.setText(editCard.getName());
         uidEditText.setText(editCard.getUid());
     }
+
+
 }

@@ -5,12 +5,10 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
-import android.database.Cursor;
 import android.os.Bundle;
 import android.support.annotation.LayoutRes;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
-import android.support.v4.content.LocalBroadcastManager;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.util.Log;
@@ -104,7 +102,16 @@ public class CardsList extends AppCompatActivity {
         actionUpdateCards.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
+                menuMultipleActions.collapse();
                 ESPConnector.getNewCards();
+            }
+        });
+
+        actionNewCard.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                menuMultipleActions.collapse();
+                mCardsDataSource.createEmptyCard(mContext);
             }
         });
 
