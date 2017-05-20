@@ -24,9 +24,9 @@ public class CardsDataSource {
         mDbHelper = new CardsDbHelper(context);
     }
 
-    public long addCard(Card card) {
+    /*public long addCard(Card card) {
         return addCard(card.toJSON());
-    }
+    }*/
 
     public long addCard(JSONObject cardJSON) {
         return addCard(cardJSON.toString());
@@ -81,6 +81,10 @@ public class CardsDataSource {
     }
 
     public Card getCard(int id) {
+        return new Card(getCardJSON(id), id);
+    }
+
+    public String getCardJSON(int id) {
         SQLiteDatabase db = mDbHelper.getReadableDatabase();
 
         // Define a projection that specifies which columns from the database
@@ -106,17 +110,15 @@ public class CardsDataSource {
         );
 
         String cardJSONString = "";
-        int cardId = 0;
 
         if (cursor.moveToFirst()) {
             do {
                 cardJSONString = cursor.getString(cursor.getColumnIndex(CardEntry.COLUMN_NAME_JSONCARD));
-                cardId = cursor.getInt(cursor.getColumnIndex(CardEntry._ID));
 
             } while (cursor.moveToNext());
         }
 
-        return new Card(cardJSONString, cardId);
+        return cardJSONString;
     }
 
     public int delCard(int id) {

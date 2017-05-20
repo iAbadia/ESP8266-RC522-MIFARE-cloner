@@ -124,6 +124,27 @@ void handle_get_card() {
 
 void handle_update_card() {
   File upload_card_json;
+  String jsoncard = server.arg("plain");
+  Serial.println("Received card: ");
+  Serial.println(jsoncard);
+  // Save file
+  String filename = CARDS_DIR;
+  filename += server.arg("name");
+  upload_card_json = SPIFFS.open(filename, "w");
+  upload_card_json.print(jsoncard);
+  upload_card_json.close();
+  update_cards_list();
+  if(server.hasArg("write") && server.arg("write").equals("yes")) {
+    Serial.println("About to write card: " + server.arg("name"));
+    write_card(server.arg("name"));
+  } else {
+    Serial.println("Received card but not writing: " + server.arg("name"));
+  }
+  server.send(200);
+}
+
+void handle_update_card_file() {
+  File upload_card_json;
   HTTPUpload& upload = server.upload();
   Serial.println("Status: " + upload.status);
   Serial.println("Filename: " + upload.filename);

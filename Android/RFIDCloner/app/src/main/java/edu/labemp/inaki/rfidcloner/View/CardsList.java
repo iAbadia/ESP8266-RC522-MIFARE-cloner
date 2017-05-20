@@ -42,6 +42,7 @@ public class CardsList extends AppCompatActivity {
     private static final int M_CONTEXT_EDIT = 0;
     private static final int M_CONTEXT_WRITE = 1;
     private static final int M_CONTEXT_DELETE = 2;
+    public static final String EDIT_EXTRA = "edit_id_extra";
 
 
     private List<Card> cardsList;
@@ -129,10 +130,12 @@ public class CardsList extends AppCompatActivity {
         AdapterView.AdapterContextMenuInfo info = (AdapterView.AdapterContextMenuInfo) item.getMenuInfo();
         switch (item.getItemId()) {
             case M_CONTEXT_EDIT:
-
+                Intent editIntent = new Intent(mContext, CardEditActivity.class);
+                editIntent.putExtra(EDIT_EXTRA, mAdapter.getItem(info.position).getId());
+                startActivity(editIntent);
                 break;
             case M_CONTEXT_WRITE:
-
+                ESPConnector.sendCardToWrite(mAdapter.getItem(info.position).getId());
                 break;
             case M_CONTEXT_DELETE:
                 mAdapter.removeCard(info.position);
@@ -199,6 +202,10 @@ public class CardsList extends AppCompatActivity {
             mCardsDataSource.delCard(cardsList.get(position).getId());
             cardsList.remove(position);
             notifyDataSetChanged();
+        }
+
+        public Card getItem(int position) {
+            return cardsList.get(position);
         }
 
         private int lastPosition = -1;

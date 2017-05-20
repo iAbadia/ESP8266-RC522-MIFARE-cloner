@@ -84,10 +84,6 @@ public class Card {
         this.picc = picc;
     }
 
-    public JSONObject toJSON() {
-        return null;
-    }
-
     private void parseJSONToCard(JSONObject cardJSON) {
         try {
             // Extract data

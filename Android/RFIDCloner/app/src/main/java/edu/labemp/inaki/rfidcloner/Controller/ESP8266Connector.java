@@ -17,8 +17,11 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import edu.labemp.inaki.rfidcloner.Model.CardsDataSource;
 import edu.labemp.inaki.rfidcloner.View.SettingsActivity;
@@ -133,5 +136,69 @@ public class ESP8266Connector {
     // add it to the RequestQueue
         queue.add(getRequest);
 }
+
+    public boolean sendCardToWrite(int id) {
+        try {
+            final JSONObject jsonCard = new JSONObject(mCardsDataSource.getCardJSON(id));
+            RequestQueue queue = Volley.newRequestQueue(mContext);
+
+            SharedPreferences sharedPref = PreferenceManager.getDefaultSharedPreferences(mContext);
+            String ESPURL = "http://" + sharedPref.getString("esp8266_ip", ESPDEFURL);
+            String url = ESPURL + cardUrl + "?write=yes";
+
+
+            JsonObjectRequest putRequest = new JsonObjectRequest(Request.Method.PUT, url, jsonCard,
+                    new Response.Listener<JSONObject>()
+                    {
+                        @Override
+                        public void onResponse(JSONObject response) {
+                            // response
+                            Log.d("Response", response.toString());
+                        }
+                    },
+                    new Response.ErrorListener()
+                    {
+                        @Override
+                        public void onErrorResponse(VolleyError error) {
+                            // error
+                            Log.d("Error.Response", error.toString());
+                        }
+                    }
+            ) {
+
+                @Override
+                public Map<String, String> getHeaders()
+                {
+                    Map<String, String> headers = new HashMap<String, String>();
+                    headers.put("Content-Type", "application/json");
+                    headers.put("Accept", "application/json");
+                    return headers;
+                }
+
+                @Override
+                public String getBodyContentType() {
+                    return "application/json";
+                }
+
+                @Override
+                public byte[] getBody() {
+
+                    try {
+                        Log.i("json", jsonCard.toString());
+                        return jsonCard.toString().getBytes("UTF-8");
+                    } catch (UnsupportedEncodingException e) {
+                        e.printStackTrace();
+                    }
+                    return null;
+                }
+            };
+
+            queue.add(putRequest);
+            return true;
+        } catch (JSONException e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
 
 }
