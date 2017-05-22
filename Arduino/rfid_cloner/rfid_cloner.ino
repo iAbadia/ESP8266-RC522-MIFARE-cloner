@@ -131,6 +131,7 @@ void setup() {
   // WebServer
   Serial.println("WebServer... ");
   if (MDNS.begin("esp8266")) {
+    MDNS.addService("http", "tcp", 80);
     Serial.println(" [+] MDNS responder ready (esp8266)");
   } else {
     Serial.println(" [-] MDNS responder failed.");

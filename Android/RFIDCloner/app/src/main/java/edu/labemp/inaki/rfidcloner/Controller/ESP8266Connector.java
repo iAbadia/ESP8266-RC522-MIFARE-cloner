@@ -37,6 +37,7 @@ public class ESP8266Connector {
     public static String UPDATE_ACTION_NO_NEW = "rfid.UPDATE_ACTION_NO_NEW";
 
     private static final String ESPDEFURL = "192.168.0.136";
+    private static final String ESPHOSTNAME = "esp8266.local";
 
     private final String listCardsUrl = "/listcards";
     private final String cardUrl = "/card";
@@ -53,6 +54,7 @@ public class ESP8266Connector {
     public void getNewCards() {
         SharedPreferences sharedPref = PreferenceManager.getDefaultSharedPreferences(mContext);
         String ESPURL = "http://" + sharedPref.getString("esp8266_ip", ESPDEFURL);
+        //String ESPURL = "http://" + ESPHOSTNAME;
         RequestQueue queue = Volley.newRequestQueue(mContext);
         String url = ESPURL + listCardsUrl;
         // prepare the Request

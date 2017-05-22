@@ -25,17 +25,19 @@ import android.widget.ArrayAdapter;
 import android.widget.ListView;
 import android.widget.TextView;
 
-
 import com.getbase.floatingactionbutton.FloatingActionsMenu;
 
 import java.util.List;
 
 import edu.labemp.inaki.rfidcloner.Controller.ESP8266Connector;
+import edu.labemp.inaki.rfidcloner.Controller.NsdHelper;
 import edu.labemp.inaki.rfidcloner.Model.Card;
 import edu.labemp.inaki.rfidcloner.Model.CardsDataSource;
 import edu.labemp.inaki.rfidcloner.R;
 
 public class CardsList extends AppCompatActivity {
+
+    NsdHelper mNsdHelper;
 
     private static final int M_CONTEXT_EDIT = 0;
     private static final int M_CONTEXT_WRITE = 1;
@@ -121,6 +123,10 @@ public class CardsList extends AppCompatActivity {
         IntentFilter intentFilter = new IntentFilter(ESP8266Connector.UPDATE_ACTION);
         intentFilter.addAction(ESP8266Connector.UPDATE_ACTION_NO_NEW);
         this.registerReceiver(mBroadcastReceiver, intentFilter);
+
+        mNsdHelper = new NsdHelper(this);
+        mNsdHelper.initializeNsd();
+        mNsdHelper.discoverServices();
     }
 
     @Override

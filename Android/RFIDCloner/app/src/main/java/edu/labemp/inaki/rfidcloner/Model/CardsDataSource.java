@@ -48,6 +48,23 @@ public class CardsDataSource {
         return db.insert(CardEntry.TABLE_NAME, null, values);
     }
 
+    public int updateCard(Card card) {
+        int cardId = card.getId();
+        // Gets the data repository in write mode
+        SQLiteDatabase db = mDbHelper.getWritableDatabase();
+
+        // Create a new map of values, where column names are the keys
+        ContentValues values = new ContentValues();
+        values.put(CardEntry.COLUMN_NAME_JSONCARD, card.toJSONString());
+
+        // Which row to update, based on the title
+        String selection = CardEntry._ID+ " LIKE ?";
+        String[] selectionArgs = { Integer.toString(cardId) };
+
+        // Insert the new row, returning the primary key value of the new row
+        return db.update(CardEntry.TABLE_NAME, values, selection, selectionArgs);
+    }
+
     public List<Card> getCards() {
         SQLiteDatabase db = mDbHelper.getReadableDatabase();
 
