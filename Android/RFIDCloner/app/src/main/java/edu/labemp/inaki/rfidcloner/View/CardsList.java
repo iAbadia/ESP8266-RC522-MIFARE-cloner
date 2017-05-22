@@ -27,6 +27,8 @@ import android.widget.TextView;
 
 import com.getbase.floatingactionbutton.FloatingActionsMenu;
 
+import org.json.JSONException;
+
 import java.util.List;
 
 import edu.labemp.inaki.rfidcloner.Controller.ESP8266Connector;
@@ -43,6 +45,7 @@ public class CardsList extends AppCompatActivity {
     private static final int M_CONTEXT_WRITE = 1;
     private static final int M_CONTEXT_DELETE = 2;
     private static final int M_CONTEXT_CLONE = 3;
+    private static final int M_CONTEXT_SHARE = 4;
     private static final int FAB_GROUP_ID = -1;
     public static final String EDIT_EXTRA = "edit_id_extra";
 
@@ -137,6 +140,7 @@ public class CardsList extends AppCompatActivity {
         menu.add(FAB_GROUP_ID, M_CONTEXT_WRITE, Menu.NONE, "Write card");
         menu.add(FAB_GROUP_ID, M_CONTEXT_CLONE, Menu.NONE, "Clone card");
         menu.add(FAB_GROUP_ID, M_CONTEXT_DELETE, Menu.NONE, "Delete card");
+        menu.add(FAB_GROUP_ID, M_CONTEXT_SHARE, Menu.NONE, "Share card");
 
     }
 
@@ -159,6 +163,18 @@ public class CardsList extends AppCompatActivity {
                     ESPConnector.sendCardToClone(mAdapter.getItem(info.position).getId());
                 case M_CONTEXT_DELETE:
                     mAdapter.removeCard(info.position);
+                    break;
+                case M_CONTEXT_SHARE:
+                    try {
+                        String shareJSONCard = mAdapter.getItem(info.position).toJSON().toString(2);
+                        Intent sendIntent = new Intent();
+                        sendIntent.setAction(Intent.ACTION_SEND);
+                        sendIntent.putExtra(Intent.EXTRA_TEXT, shareJSONCard);
+                        sendIntent.setType("text/plain");
+                        startActivity(sendIntent);
+                    }catch (JSONException e) {
+                        e.printStackTrace();
+                    }
                     break;
                 default:
                     Log.d("ContextMenuItem", "Something went wrong...");
