@@ -12,8 +12,8 @@
 #include <FS.h>
 
 /* wiring the MFRC522 to ESP8266 (ESP-12)
-  RST     = GPIO9
-  SDA(SS) = GPIO10
+  RST     = D4
+  SDA(SS) = D8
   MOSI    = GPIO13/D7
   MISO    = GPIO12/D6
   SCK     = GPIO14/D5
@@ -29,7 +29,7 @@
 MFRC522 mfrc522(SS_PIN, RST_PIN); // Create MFRC522 instance
 
 byte buffer[18];
-byte block;
+//byte block;
 byte card_dump[64][16];
 #define BLOCK_SIZE 16
 #define SECTOR_SIZE 4
@@ -400,7 +400,7 @@ bool read_card(MFRC522* mfrc) {
   }
   }*/
 
-bool write_card(String name) {
+bool write_card(String name, bool clone) {
   // Read file and parse to JSON
   File json_card_file = SPIFFS.open(CARDS_DIR + name, "r");
   String card_string = "";
@@ -426,15 +426,10 @@ bool write_card(String name) {
   
   // Look for new cards
   Serial.println("Ready to write, insert card now...");
-  for(int i = 4;i>0;i--) {
-    ESP.wdtFeed();
-    Serial.print(i); Serial.print(" ");
-    delay(1000);
-  }
   Serial.println();
-  while ( !mfrc522.PICC_IsNewCardPresent() && !mfrc522.PICC_ReadCardSerial()) {
+  while ( !mfrc522.PICC_IsNewCardPresent() || !mfrc522.PICC_ReadCardSerial()) {
     ESP.wdtFeed();
-    server.handleClient();
+    //server.handleClient();
     delay(50);
   }
 
@@ -451,8 +446,10 @@ bool write_card(String name) {
     key.keyByte[i] = 0xFF;
   }
   MFRC522::StatusCode status;
-  for (int i = 4; i <= 62; i++) { //De blocken 4 tot 62 kopieren, behalve al deze onderstaande blocken (omdat deze de authenticatie blokken zijn)
-    if (i == 7 || i == 11 || i == 15 || i == 19 || i == 23 || i == 27 || i == 31 || i == 35 || i == 39 || i == 43 || i == 47 || i == 51 || i == 55 || i == 59) {
+  byte block;
+  // Authenticate block 0
+  for (byte i = clone ? 0 : 4; i <= 62; i++) { //De blocken 4 tot 62 kopieren, behalve al deze onderstaande blocken (omdat deze de authenticatie blokken zijn)
+    if (i == 3 || i == 7 || i == 11 || i == 15 || i == 19 || i == 23 || i == 27 || i == 31 || i == 35 || i == 39 || i == 43 || i == 47 || i == 51 || i == 55 || i == 59) {
       i++;
     }
     block = i;
@@ -472,13 +469,13 @@ bool write_card(String name) {
     }
 
     // Authenticate using key B
-    Serial.println(F("Authenticating again using key B..."));
-    status = (MFRC522::StatusCode) mfrc522.PCD_Authenticate(MFRC522::PICC_CMD_MF_AUTH_KEY_B, block, &key, &(mfrc522.uid));
+    /*Serial.println(F("Authenticating again using key B..."));
+    status = mfrc522.PCD_Authenticate(MFRC522::PICC_CMD_MF_AUTH_KEY_B, block, &key, &(mfrc522.uid));
     if (status != MFRC522::STATUS_OK) {
       Serial.print(F("PCD_Authenticate() failed: "));
       Serial.println(mfrc522.GetStatusCodeName(status));
       return false;
-    }
+    }*/
 
     // Write data to the block
     Serial.print(F("Writing data into block "));
@@ -494,7 +491,7 @@ bool write_card(String name) {
       Serial.println(mfrc522.GetStatusCodeName(status));
     }
 
-
+    ESP.wdtFeed();
     Serial.println("\n");
 
   }

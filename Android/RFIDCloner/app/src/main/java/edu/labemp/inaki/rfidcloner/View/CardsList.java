@@ -40,6 +40,7 @@ public class CardsList extends AppCompatActivity {
     private static final int M_CONTEXT_EDIT = 0;
     private static final int M_CONTEXT_WRITE = 1;
     private static final int M_CONTEXT_DELETE = 2;
+    private static final int FAB_GROUP_ID = 3;
     public static final String EDIT_EXTRA = "edit_id_extra";
 
 
@@ -125,9 +126,9 @@ public class CardsList extends AppCompatActivity {
     public void onCreateContextMenu(ContextMenu menu, View v, ContextMenu.ContextMenuInfo menuInfo) {
         super.onCreateContextMenu(menu, v, menuInfo);
         menu.setHeaderTitle("Actions");
-        menu.add(Menu.NONE, M_CONTEXT_EDIT, Menu.NONE, "Edit card");
-        menu.add(Menu.NONE, M_CONTEXT_WRITE, Menu.NONE, "Write card");
-        menu.add(Menu.NONE, M_CONTEXT_DELETE, Menu.NONE, "Delete card");
+        menu.add(FAB_GROUP_ID, M_CONTEXT_EDIT, Menu.NONE, "Edit card");
+        menu.add(FAB_GROUP_ID, M_CONTEXT_WRITE, Menu.NONE, "Write card");
+        menu.add(FAB_GROUP_ID, M_CONTEXT_DELETE, Menu.NONE, "Delete card");
 
     }
 
@@ -135,22 +136,25 @@ public class CardsList extends AppCompatActivity {
     public boolean onContextItemSelected(MenuItem item) {
         boolean ret = super.onContextItemSelected(item);
         AdapterView.AdapterContextMenuInfo info = (AdapterView.AdapterContextMenuInfo) item.getMenuInfo();
-        switch (item.getItemId()) {
-            case M_CONTEXT_EDIT:
-                Intent editIntent = new Intent(mContext, CardEditActivity.class);
-                editIntent.putExtra(EDIT_EXTRA, mAdapter.getItem(info.position).getId());
-                startActivity(editIntent);
-                break;
-            case M_CONTEXT_WRITE:
-                ESPConnector.sendCardToWrite(mAdapter.getItem(info.position).getId());
-                break;
-            case M_CONTEXT_DELETE:
-                mAdapter.removeCard(info.position);
-                break;
-            default:
-                Log.d("ContextMenuItem", "Something went wrong...");
+        if (item.getGroupId() == FAB_GROUP_ID) {
+            switch (item.getItemId()) {
+                case M_CONTEXT_EDIT:
+                    Intent editIntent = new Intent(mContext, CardEditActivity.class);
+                    editIntent.putExtra(EDIT_EXTRA, mAdapter.getItem(info.position).getId());
+                    startActivity(editIntent);
+                    break;
+                case M_CONTEXT_WRITE:
+                    Log.d("CardsList", "Sending card to write");
+                    ESPConnector.sendCardToWrite(mAdapter.getItem(info.position).getId());
+                    break;
+                case M_CONTEXT_DELETE:
+                    mAdapter.removeCard(info.position);
+                    break;
+                default:
+                    Log.d("ContextMenuItem", "Something went wrong...");
+            }
+            Log.d("CardsListContextMenu", "item selected: " + item.getItemId());
         }
-        Log.d("CardsListContextMenu", "item selected: " + item.getItemId());
         return ret;
     }
 

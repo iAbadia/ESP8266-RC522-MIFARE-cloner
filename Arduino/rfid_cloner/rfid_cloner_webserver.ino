@@ -136,14 +136,19 @@ void handle_update_card() {
   update_cards_list();
   if(server.hasArg("write") && server.arg("write").equals("yes")) {
     Serial.println("About to write card: " + server.arg("name"));
-    write_card(server.arg("name"));
+    server.send(200);
+    if(server.hasArg("clone") && server.arg("clone").equals("yes")) {
+      write_card(server.arg("name"), true);
+    } else {
+      write_card(server.arg("name"), false);
+    }
   } else {
     Serial.println("Received card but not writing: " + server.arg("name"));
+    server.send(200);
   }
-  server.send(200);
 }
 
-void handle_update_card_file() {
+/*void handle_update_card_file() {
   File upload_card_json;
   HTTPUpload& upload = server.upload();
   Serial.println("Status: " + upload.status);
@@ -166,7 +171,7 @@ void handle_update_card_file() {
     write_card(upload.name);
   }
   server.send(200);
-}
+}*/
 
 void handle_delete_card() {
   yield();
