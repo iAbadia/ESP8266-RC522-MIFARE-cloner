@@ -40,7 +40,8 @@ public class CardsList extends AppCompatActivity {
     private static final int M_CONTEXT_EDIT = 0;
     private static final int M_CONTEXT_WRITE = 1;
     private static final int M_CONTEXT_DELETE = 2;
-    private static final int FAB_GROUP_ID = 3;
+    private static final int M_CONTEXT_CLONE = 3;
+    private static final int FAB_GROUP_ID = -1;
     public static final String EDIT_EXTRA = "edit_id_extra";
 
 
@@ -128,6 +129,7 @@ public class CardsList extends AppCompatActivity {
         menu.setHeaderTitle("Actions");
         menu.add(FAB_GROUP_ID, M_CONTEXT_EDIT, Menu.NONE, "Edit card");
         menu.add(FAB_GROUP_ID, M_CONTEXT_WRITE, Menu.NONE, "Write card");
+        menu.add(FAB_GROUP_ID, M_CONTEXT_CLONE, Menu.NONE, "Clone card");
         menu.add(FAB_GROUP_ID, M_CONTEXT_DELETE, Menu.NONE, "Delete card");
 
     }
@@ -147,6 +149,8 @@ public class CardsList extends AppCompatActivity {
                     Log.d("CardsList", "Sending card to write");
                     ESPConnector.sendCardToWrite(mAdapter.getItem(info.position).getId());
                     break;
+                case M_CONTEXT_CLONE:
+                    ESPConnector.sendCardToClone(mAdapter.getItem(info.position).getId());
                 case M_CONTEXT_DELETE:
                     mAdapter.removeCard(info.position);
                     break;

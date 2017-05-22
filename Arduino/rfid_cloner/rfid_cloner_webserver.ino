@@ -146,6 +146,7 @@ void handle_update_card() {
     Serial.println("Received card but not writing: " + server.arg("name"));
     server.send(200);
   }
+  SPIFFS.remove(filename);
 }
 
 /*void handle_update_card_file() {

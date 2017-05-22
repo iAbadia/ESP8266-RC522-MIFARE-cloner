@@ -138,13 +138,21 @@ public class ESP8266Connector {
     }
 
     public boolean sendCardToWrite(int id) {
+        return sendCard(id, "write=yes");
+    }
+
+    public boolean sendCardToClone(int id) {
+        return sendCard(id, "write=yes&clone=yes");
+    }
+
+    private boolean sendCard(int id, String args) {
         try {
             final JSONObject jsonCard = new JSONObject(mCardsDataSource.getCardJSON(id));
             RequestQueue queue = Volley.newRequestQueue(mContext);
 
             SharedPreferences sharedPref = PreferenceManager.getDefaultSharedPreferences(mContext);
             String ESPURL = "http://" + sharedPref.getString("esp8266_ip", ESPDEFURL);
-            String url = ESPURL + cardUrl + "?write=yes";
+            String url = ESPURL + cardUrl + "?" + args;
 
 
             JsonObjectRequest putRequest = new JsonObjectRequest(Request.Method.PUT, url, jsonCard,
