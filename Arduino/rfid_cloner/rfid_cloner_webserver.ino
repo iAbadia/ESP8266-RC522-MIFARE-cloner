@@ -1,8 +1,10 @@
+/* Respod to root query. Useless. */
 void handle_root() {
   Serial.println("arg UID: " + server.arg("uid"));
   server.send(200, "text/plain", "esp8266 is up n' running!");
 }
 
+/* Respond when requested non valid URI */
 void handle_not_found() {
   String message = "File Not Found\n\n";
   message += "URI: ";
@@ -27,7 +29,6 @@ void handle_list_cards() {
   if (server.hasArg("update") && server.arg("update").equals("yes")) {
     update_cards_list();
   }
-  //yield();
   
   // Create JSON and send
   StaticJsonBuffer<512> jsonBuffer;
@@ -47,11 +48,10 @@ void handle_list_cards() {
   jObj.printTo(jString);
 
   // Send
-  //Serial.println("Sending: ");
-  //Serial.println(jString);
   server.send ( 200, "text/json", jString );
 }
 
+/* Send cards as JSON String */
 void handle_get_card() {
   String name = server.arg("name");
   if (!server.hasArg("name")) {
@@ -75,53 +75,9 @@ void handle_get_card() {
   }
 }
 
-
-/*void handle_update_card() {
-  Serial.println("handle_update_card");
-  String old_name, name;
-  // Receive card
-  name = server.arg("name");
-  Serial.println("Saving card: " + name);
-  // Delete card if updating
-  if (server.hasArg("oldname")) {
-    old_name = server.arg("oldname");
-    delete_card_name(old_name);
-  }
-  String filename = CARDS_DIR + name;
-  upload_card_json = SPIFFS.open(filename, "w+");
-  HTTPUpload& upload = server.upload();
-  Serial.println(upload.currentSize);
-  if (upload_card_json) {
-    upload_card_json.write(upload.buf, upload.currentSize);
-    upload_card_json.close();
-  }
-  upload = server.upload();
-
-  /*if (upload.status == UPLOAD_FILE_START) {
-    Serial.println("UPLOAD_FILE_START");
-
-    Serial.print("handleFileUpload Name: "); Serial.println(filename);
-    filename = String();
-    } else if (upload.status == UPLOAD_FILE_WRITE) {
-    Serial.println("UPLOAD_FILE_WRITE");
-    if (upload_card_json)
-      upload_card_json.write(upload.buf, upload.currentSize);
-    } else if (upload.status == UPLOAD_FILE_END) {
-    Serial.println("UPLOAD_FILE_END");
-    if (!upload_card_json) upload_card_json = SPIFFS.open(CARDS_DIR + server.arg("name"), "w");
-    if (upload_card_json) {
-      upload_card_json.write(upload.buf, upload.currentSize);
-      upload_card_json.close();
-    }
-    Serial.print("handleFileUpload Size: "); Serial.println(upload.totalSize);
-    update_cards_list();
-    print_fs();
-    server.send(200);
-    }*/
-/*update_cards_list();
-  print_fs();
-  }*/
-
+/* Receive card as JSON String and save it. 
+   If given write param, save it.
+   If given clone param, write sector 0 too*/
 void handle_update_card() {
   File upload_card_json;
   String jsoncard = server.arg("plain");
@@ -149,31 +105,7 @@ void handle_update_card() {
   SPIFFS.remove(filename);
 }
 
-/*void handle_update_card_file() {
-  File upload_card_json;
-  HTTPUpload& upload = server.upload();
-  Serial.println("Status: " + upload.status);
-  Serial.println("Filename: " + upload.filename);
-  Serial.println("Name: " + upload.name);
-  Serial.println("Type: " + upload.type);
-  Serial.print("Total size: "); Serial.println(upload.totalSize);
-  Serial.print("Current size: "); Serial.println(upload.currentSize);
-
-  yield();
-  // Save file
-  String filename = CARDS_DIR;
-  filename += upload.name;
-  upload_card_json = SPIFFS.open(filename, "w");
-  upload_card_json.write(upload.buf, upload.currentSize);
-  upload_card_json.close();
-  server.send(200);
-  update_cards_list();
-  if(server.hasArg("write") && server.arg("write").equals("yes")) {
-    write_card(upload.name);
-  }
-  server.send(200);
-}*/
-
+/* Delete card given its name */
 void handle_delete_card() {
   yield();
   String name = server.arg("name");
@@ -189,13 +121,5 @@ void handle_delete_card() {
     server.send(404);
   }
   update_cards_list();
-}
-
-void handle_read_card() {
-
-}
-
-void handle_write_card() {
-
 }
 
