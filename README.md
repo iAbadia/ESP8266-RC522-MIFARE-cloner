@@ -4,7 +4,7 @@ Proyecto de Iñaki Abadia para la asignatura de Laboratorio de Sistemas Empotrad
 
 ## Estructura
 
-En la carpeta [ESP8266](https://github.com/iAbadia/Laboratorio-Empotrados-2016-17/tree/master/Arduino) se encuentra el proyecto para el ESP8266 en entorno de desarrollo Arduino (Arduino IDE).
+En la carpeta [ESP8266](https://github.com/iAbadia/Laboratorio-Empotrados-2016-17/tree/master/ESP8266) se encuentra el proyecto para el ESP8266 en entorno de desarrollo Arduino (Arduino IDE).
 
 En la carpeta [Android](https://github.com/iAbadia/Laboratorio-Empotrados-2016-17/tree/master/Android) se encuentra el proyecto de Android Studio.
 
