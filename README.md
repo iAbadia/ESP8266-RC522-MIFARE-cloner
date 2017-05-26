@@ -1,22 +1,24 @@
 # RFID Reader / Writer / Cloner
 
-Proyecto de Iñaki Abadia para la asignatura de Laboratorio de Sistemas Empotrados, EINA (UNIZAR) 2016/17.
+Iñaki Abadia's project for Embedded Systems Laboratory 2016/17, EINA (UNIZAR).
 
-## Estructura
+## Structure
 
-En la carpeta [ESP8266](https://github.com/iAbadia/Laboratorio-Empotrados-2016-17/tree/master/ESP8266) se encuentra el proyecto para el ESP8266 en entorno de desarrollo Arduino (Arduino IDE).
+Folder [ESP8266](https://github.com/iAbadia/Laboratorio-Empotrados-2016-17/tree/master/ESP8266) contains Arduino IDE project for ESP8266.
 
-En la carpeta [Android](https://github.com/iAbadia/Laboratorio-Empotrados-2016-17/tree/master/Android) se encuentra el proyecto de Android Studio.
+Folder [Android](https://github.com/iAbadia/Laboratorio-Empotrados-2016-17/tree/master/Android) contains Android Studio project.
 
-En la carpeta [Docs](https://github.com/iAbadia/Laboratorio-Empotrados-2016-17/tree/master/Docs) se encuentran los PDFs de la presentacin del proyecto. Actualmente hay una versin en Ingls y otra en Español.
+Folder [Docs](https://github.com/iAbadia/Laboratorio-Empotrados-2016-17/tree/master/Docs) contains the project slides in PDF. English and Spanish versions available at the moment.
 
-## Dependencias
+Folder [Media](https://github.com/iAbadia/Laboratorio-Empotrados-2016-17/tree/master/Media) contains pictures about this project.
+
+## Dependencies
 
 ### Android
-Las dependencias del proyecto Android se encuentran registradas en el gradle.build pertinente, serán descargadas al sincronizar el proyecto
+Android project dependencies are properly registered in gradle.build, they'll be automatically downloaded at Gradle sync.
 
 ### ESP8266
-Las dependencias del proyecto para ESP8266 son las siguientes:
+ESP8266 project dependencies:
 
-* ESP8266: Libreria de la comunidad para ESP8266 en entorno de desarrollo Arduino. Disponible en su [GitHub](https://github.com/esp8266/Arduino).
-* RC522: Libreria de Miguel Balboa para el lector/escritor RFID MFRC522. Disponible en su [GitHub](https://github.com/miguelbalboa/rfid).
+* ESP8266: Community library for Arduino developement evironment, Arduino IDE. Available on [GitHub](https://github.com/esp8266/Arduino).
+* RC522: Miguel Balboa's library for MFRC522 reader/writer. Available at his [GitHub](https://github.com/miguelbalboa/rfid).
