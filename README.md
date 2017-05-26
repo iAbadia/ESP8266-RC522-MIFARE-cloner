@@ -2,6 +2,10 @@
 
 Iñaki Abadia's project for Embedded Systems Laboratory 2016/17, EINA (UNIZAR). This is a prototype, developed with academic purposes ONLY.
 
+<p align="center">
+  <img src="https://raw.githubusercontent.com/iAbadia/Laboratorio-Empotrados-2016-17/master/Media/rfid-cloner.jpg"/>
+</p>
+
 ## Structure
 
 Folder [ESP8266](https://github.com/iAbadia/Laboratorio-Empotrados-2016-17/tree/master/ESP8266) contains Arduino IDE project for ESP8266.
