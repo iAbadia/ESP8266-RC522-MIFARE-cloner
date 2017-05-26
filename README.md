@@ -1,6 +1,6 @@
 # RFID Reader / Writer / Cloner
 
-Iñaki Abadia's project for Embedded Systems Laboratory 2016/17, EINA (UNIZAR).
+Iñaki Abadia's project for Embedded Systems Laboratory 2016/17, EINA (UNIZAR). This is a prototype, developed with academic purposes ONLY.
 
 ## Structure
 
